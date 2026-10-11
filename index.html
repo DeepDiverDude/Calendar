@@ -369,7 +369,7 @@
         </div>
     </div>
 
-    <!-- Starta klocka direkt oberoende av Firebase -->
+    <!-- Starta klocka direkt -->
     <script>
         function updateClockAndDate() {
             const now = new Date();
@@ -411,7 +411,6 @@
         let pressTimer = null;
         const todayKey = new Date().toISOString().split('T')[0];
 
-        // Läs in aktiviteter
         const activitiesRef = ref(db, 'activities');
         onValue(activitiesRef, (snapshot) => {
             const data = snapshot.val();
@@ -426,19 +425,14 @@
                 renderApp();
                 renderAdminList();
             }
-        }, (error) => {
-            console.error("Fel vid hämtning av aktiviteter:", error);
-            document.getElementById('activities-container').innerHTML = '<div class="no-activities">Kunde inte ansluta till databasen.</div>';
         });
 
-        // Läs in avprickningar idag
         const completionsRef = ref(db, `completions/${todayKey}`);
         onValue(completionsRef, (snapshot) => {
             todayCompletions = snapshot.val() || {};
             renderApp();
         });
 
-        // Lyssna på medicinknappen
         const clicksRef = ref(medDb, 'clicks');
         onValue(clicksRef, (snapshot) => {
             const clicks = snapshot.val();
@@ -496,11 +490,9 @@
                 }
 
                 if (show) {
-                    let sortTime = act.time;
-                    if (!sortTime) {
-                        sortTime = act.title.toLowerCase().includes('kväll') ? '20:00' : '08:00';
-                    }
-                    todaysList.push({ id, ...act, sortTime });
+                    let defaultTime = act.title.toLowerCase().includes('kväll') ? '20:00' : '08:00';
+                    let sortTime = act.time || defaultTime;
+                    todaysList.push({ id, ...act, sortTime, defaultTime });
                 }
             });
 
@@ -513,13 +505,19 @@
 
             todaysList.forEach(act => {
                 const isCompleted = todayCompletions[act.id] && todayCompletions[act.id].completed;
-                const completedTime = isCompleted && todayCompletions[act.id].time ? `(Utfört ${todayCompletions[act.id].time})` : (isCompleted ? 'Utfört' : '');
+                
+                // Bestäm tid att visa: Om aktiviteten har en fast tid används den. 
+                // För medicin (utan fast tid): visa exakt tid om den är utförd, annars 08:00 eller 20:00.
+                let displayTime = act.time;
+                if (!displayTime) {
+                    displayTime = (isCompleted && todayCompletions[act.id].time) ? todayCompletions[act.id].time : act.defaultTime;
+                }
 
                 const card = document.createElement('div');
                 card.className = `activity-card ${isCompleted ? 'completed' : ''}`;
                 card.innerHTML = `
                     <div class="activity-info">
-                        <div class="activity-time">${act.time || ''} ${completedTime}</div>
+                        <div class="activity-time">${displayTime}</div>
                         <div class="activity-name">${act.title}</div>
                     </div>
                     <div class="activity-status-icon">✓</div>
