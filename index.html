@@ -282,16 +282,42 @@
             background: #1d4ed8;
         }
 
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+            display: none;
+        }
+
         .admin-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
+            padding: 12px 10px;
             border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .admin-item:hover {
+            background: #f8fafc;
         }
 
         .admin-item:last-child {
             border-bottom: none;
+        }
+
+        .admin-item-actions {
+            display: flex;
+            gap: 8px;
         }
 
         .btn-danger {
@@ -308,13 +334,19 @@
         /* Veckovy Navigering */
         .week-nav {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 10px;
             margin-bottom: 16px;
             background: #ffffff;
-            padding: 12px 16px;
+            padding: 14px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
+        }
+
+        .week-nav-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .week-nav button {
@@ -327,6 +359,14 @@
             cursor: pointer;
         }
 
+        .btn-today-week {
+            background: #e2e8f0 !important;
+            color: #334155 !important;
+            width: 100%;
+            padding: 8px;
+            font-size: 0.9rem;
+        }
+
         .week-day-box {
             background: #ffffff;
             border: 1px solid #e2e8f0;
@@ -334,6 +374,25 @@
             padding: 16px;
             margin-bottom: 12px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            position: relative;
+        }
+
+        .week-day-box.is-today {
+            border: 2px solid #2563eb;
+            background-color: #f8fafc;
+        }
+
+        .today-badge {
+            position: absolute;
+            top: 14px;
+            right: 16px;
+            background: #2563eb;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
         }
 
         .week-day-box h4 {
@@ -343,6 +402,10 @@
             text-transform: uppercase;
             border-bottom: 1px solid #f1f5f9;
             padding-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-right: 50px;
         }
 
         .week-act-item {
@@ -376,7 +439,7 @@
         <button class="footer-link" id="admin-btn">⚙️ Admin</button>
     </footer>
 
-    <!-- Veckovy Modal (Tillgänglig från Användarsidan) -->
+    <!-- Veckovy Modal -->
     <div id="week-modal" class="modal">
         <div class="modal-container">
             <div class="modal-header">
@@ -385,9 +448,12 @@
             </div>
 
             <div class="week-nav">
-                <button onclick="changeWeek(-1)">← Föregående</button>
-                <span id="week-number-label" style="font-weight: 700; font-size: 1.1rem; color: #0f172a;">Vecka --</span>
-                <button onclick="changeWeek(1)">Nästa →</button>
+                <div class="week-nav-row">
+                    <button onclick="changeWeek(-1)">← Föregående</button>
+                    <span id="week-number-label" style="font-weight: 700; font-size: 1.1rem; color: #0f172a;">Vecka --</span>
+                    <button onclick="changeWeek(1)">Nästa →</button>
+                </div>
+                <button class="btn-today-week" onclick="goToCurrentWeek()">📅 Denna vecka</button>
             </div>
 
             <div id="week-days-container">
@@ -400,12 +466,13 @@
     <div id="admin-modal" class="modal">
         <div class="modal-container">
             <div class="modal-header">
-                <h2>Administratör</h2>
+                <h2 id="admin-form-title">Lägg till ny aktivitet</h2>
                 <button class="close-btn" id="close-admin">Stäng</button>
             </div>
 
             <div class="admin-section">
-                <h3>Lägg till ny aktivitet</h3>
+                <h3 id="admin-section-title">Aktivitetsdetaljer</h3>
+                <input type="hidden" id="edit-activity-id" value="">
                 <div class="form-group">
                     <label>Aktivitetsnamn</label>
                     <input type="text" id="new-title" placeholder="T.ex. Promenad, Lunch">
@@ -438,11 +505,12 @@
                         <label class="day-checkbox"><input type="checkbox" value="0"> Sön</label>
                     </div>
                 </div>
-                <button class="btn-primary" onclick="addActivity()">Spara aktivitet</button>
+                <button class="btn-primary" id="save-activity-btn" onclick="saveActivity()">Spara aktivitet</button>
+                <button class="btn-secondary" id="cancel-edit-btn" onclick="resetAdminForm()">Avbryt redigering</button>
             </div>
 
             <div class="admin-section">
-                <h3>Aktuella aktiviteter</h3>
+                <h3>Aktuella aktiviteter (klicka för att redigera)</h3>
                 <div id="admin-activities-list">
                     <!-- Fylls via JS -->
                 </div>
@@ -476,7 +544,7 @@
     <!-- Firebase Modul -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, push, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             databaseURL: "https://calendar-d302a-default-rtdb.europe-west1.firebasedatabase.app"
@@ -493,6 +561,7 @@
 
         let allActivities = {};
         let todayCompletions = {};
+        let allCompletionsCache = {}; // Cache för att läsa avprickade tider i veckovyn
         let pressTimer = null;
         let currentWeekOffset = 0;
         const todayKey = new Date().toISOString().split('T')[0];
@@ -518,6 +587,13 @@
         onValue(completionsRef, (snapshot) => {
             todayCompletions = snapshot.val() || {};
             renderApp();
+        });
+
+        // Lyssna på alla completions för att få historik till veckovyn
+        const allCompletionsRef = ref(db, 'completions');
+        onValue(allCompletionsRef, (snapshot) => {
+            allCompletionsCache = snapshot.val() || {};
+            renderWeekView();
         });
 
         const clicksRef = ref(medDb, 'clicks');
@@ -673,9 +749,15 @@
             renderWeekView();
         }
 
+        window.goToCurrentWeek = function() {
+            currentWeekOffset = 0;
+            renderWeekView();
+        }
+
         function renderWeekView() {
             const container = document.getElementById('week-days-container');
             const label = document.getElementById('week-number-label');
+            if (!container || !label) return;
             container.innerHTML = '';
 
             const now = new Date();
@@ -686,8 +768,8 @@
 
             const daysOfWeekNames = ["Söndag", "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag"];
             const monthsNames = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"];
+            const todayStr = new Date().toISOString().split('T')[0];
 
-            // Hitta måndagen i den valda veckan
             const currentDay = now.getDay();
             const diffToMonday = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
             const monday = new Date(now.setDate(diffToMonday));
@@ -700,39 +782,49 @@
                 const dayDateStr = dayDate.toISOString().split('T')[0];
                 const dayName = daysOfWeekNames[dayOfWeekIndex];
                 const formattedDateStr = `${dayDate.getDate()} ${monthsNames[dayDate.getMonth()]}`;
+                const isToday = (dayDateStr === todayStr);
 
-                // Samla aktiviteter för dagen
                 let dayActs = [];
-                Object.values(allActivities).forEach(act => {
+                Object.entries(allActivities).forEach(([id, act]) => {
                     let show = false;
                     if (act.type === 'daily') show = true;
                     else if (act.type === 'once' && act.date === dayDateStr) show = true;
                     else if (act.type === 'weekly' && act.days && act.days.includes(String(dayOfWeekIndex))) show = true;
 
                     if (show) {
-                        let sortTime = act.time;
-                        if (!sortTime) {
-                            sortTime = act.title.toLowerCase().includes('kväll') ? '20:00' : '08:00';
+                        let defaultTime = act.title.toLowerCase().includes('kväll') ? '20:00' : '08:00';
+                        
+                        // Kolla om det finns sparad tid för detta datum i databasen
+                        let displayTime = act.time;
+                        if (!displayTime) {
+                            const dayComps = allCompletionsCache[dayDateStr] || {};
+                            const comp = dayComps[id];
+                            if (comp && comp.time) {
+                                displayTime = comp.time;
+                            } else {
+                                displayTime = defaultTime;
+                            }
                         }
-                        dayActs.push({ ...act, sortTime });
+
+                        let sortTime = act.time || displayTime;
+                        dayActs.push({ ...act, displayTime, sortTime });
                     }
                 });
 
-                // Sortera aktiviteter kronologiskt per dag!
                 dayActs.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
 
                 const dayBox = document.createElement('div');
-                dayBox.className = 'week-day-box';
+                dayBox.className = `week-day-box ${isToday ? 'is-today' : ''}`;
                 
                 let actsHtml = dayActs.length > 0 ? dayActs.map(a => `
                     <div class="week-act-item">
-                        <span class="week-act-time">${a.time || a.sortTime}</span>
+                        <span class="week-act-time">${a.displayTime}</span>
                         <span>${a.title}</span>
                     </div>
                 `).join('') : '<span style="color:#94a3b8; font-size:0.9rem;">Inga aktiviteter</span>';
 
                 dayBox.innerHTML = `
-                    <h4>${dayName} ${formattedDateStr}</h4>
+                    <h4>${dayName} ${formattedDateStr} ${isToday ? '<span class="today-badge">Idag</span>' : ''}</h4>
                     <div>${actsHtml}</div>
                 `;
                 container.appendChild(dayBox);
@@ -745,7 +837,8 @@
             document.getElementById('days-group').style.display = type === 'weekly' ? 'block' : 'none';
         }
 
-        window.addActivity = function() {
+        window.saveActivity = function() {
+            const editId = document.getElementById('edit-activity-id').value;
             const title = document.getElementById('new-title').value.trim();
             const time = document.getElementById('new-time').value;
             const type = document.getElementById('new-type').value;
@@ -769,12 +862,53 @@
                 return;
             }
 
-            const newActRef = push(ref(db, 'activities'));
-            set(newActRef, { title, time, type, date, days });
+            if (editId) {
+                update(ref(db, `activities/${editId}`), { title, time, type, date, days });
+                alert('Aktiviteten har uppdaterats!');
+            } else {
+                const newActRef = push(ref(db, 'activities'));
+                set(newActRef, { title, time, type, date, days });
+                alert('Aktiviteten har lagts till!');
+            }
 
+            resetAdminForm();
+        }
+
+        window.editActivity = function(id) {
+            const act = allActivities[id];
+            if (!act) return;
+
+            document.getElementById('edit-activity-id').value = id;
+            document.getElementById('new-title').value = act.title;
+            document.getElementById('new-time').value = act.time || '';
+            document.getElementById('new-type').value = act.type || 'daily';
+            document.getElementById('new-date').value = act.date || '';
+            
+            document.querySelectorAll('.days-selector input[type="checkbox"]').forEach(cb => {
+                cb.checked = act.days && act.days.includes(cb.value);
+            });
+
+            toggleRepeatOptions();
+
+            document.getElementById('admin-form-title').textContent = 'Redigera aktivitet';
+            document.getElementById('save-activity-btn').textContent = 'Spara ändringar';
+            document.getElementById('cancel-edit-btn').style.display = 'block';
+            
+            document.getElementById('admin-modal').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.resetAdminForm = function() {
+            document.getElementById('edit-activity-id').value = '';
             document.getElementById('new-title').value = '';
             document.getElementById('new-time').value = '';
-            alert('Aktiviteten har lagts till!');
+            document.getElementById('new-type').value = 'daily';
+            document.getElementById('new-date').value = '';
+            document.querySelectorAll('.days-selector input[type="checkbox"]').forEach(cb => cb.checked = false);
+            toggleRepeatOptions();
+
+            document.getElementById('admin-form-title').textContent = 'Lägg till ny aktivitet';
+            document.getElementById('save-activity-btn').textContent = 'Spara aktivitet';
+            document.getElementById('cancel-edit-btn').style.display = 'none';
         }
 
         function renderAdminList() {
@@ -790,11 +924,13 @@
                 const item = document.createElement('div');
                 item.className = 'admin-item';
                 item.innerHTML = `
-                    <div>
+                    <div onclick="editActivity('${id}')" style="flex:1;">
                         <strong>${act.title}</strong><br>
                         <small style="color:#64748b;">${act.time || 'Ingen tid angiven'} (${act.type})</small>
                     </div>
-                    <button class="btn-danger" onclick="deleteActivity('${id}')">Ta bort</button>
+                    <div class="admin-item-actions">
+                        <button class="btn-danger" onclick="event.stopPropagation(); deleteActivity('${id}')">Ta bort</button>
+                    </div>
                 `;
                 listContainer.appendChild(item);
             });
@@ -803,10 +939,11 @@
         window.deleteActivity = function(id) {
             if (confirm('Är du säker på att du vill ta bort denna aktivitet?')) {
                 remove(ref(db, `activities/${id}`));
+                resetAdminForm();
             }
         }
 
-        // Öppna/Stäng Veckovy för Användaren
+        // Öppna/Stäng Veckovy
         document.getElementById('open-week-btn').addEventListener('click', () => {
             currentWeekOffset = 0;
             renderWeekView();
@@ -821,6 +958,7 @@
         document.getElementById('admin-btn').addEventListener('click', () => {
             const pin = prompt('Ange PIN-kod för admin:');
             if (pin === '1956') {
+                resetAdminForm();
                 document.getElementById('admin-modal').style.display = 'block';
             } else if (pin !== null) {
                 alert('Felaktig PIN-kod.');
