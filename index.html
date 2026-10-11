@@ -159,6 +159,7 @@
             color: #64748b;
         }
 
+        /* Admin Modal */
         #admin-modal {
             display: none;
             position: fixed;
@@ -298,6 +299,38 @@
             cursor: pointer;
             font-size: 0.85rem;
         }
+
+        /* Veckovy / Navigering */
+        .week-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .week-nav button {
+            background: #e2e8f0;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .week-day-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .week-day-box h4 {
+            font-size: 0.95rem;
+            color: #2563eb;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
@@ -321,6 +354,19 @@
             <div class="admin-header">
                 <h2>Administratör</h2>
                 <button class="close-btn" id="close-admin">Stäng</button>
+            </div>
+
+            <!-- Veckovy -->
+            <div class="admin-section" id="week-view-section">
+                <h3>Veckoöversikt</h3>
+                <div class="week-nav">
+                    <button onclick="changeWeek(-1)">← Föregående</button>
+                    <span id="week-number-label" style="font-weight: 700;">Vecka --</span>
+                    <button onclick="changeWeek(1)">Nästa →</button>
+                </div>
+                <div id="week-days-container">
+                    <!-- Fylls dynamiskt -->
+                </div>
             </div>
 
             <div class="admin-section">
@@ -378,11 +424,15 @@
             const clockEl = document.getElementById('clock');
             if (clockEl) clockEl.textContent = `${hours}:${minutes}`;
 
+            const daysOfWeek = ["SÖNDAG", "MÅNDAG", "TISDAG", "ONSDAG", "TORSDAG", "FREDAG", "LÖRDAG"];
             const months = ["JANUARI", "FEBRUARI", "MARS", "APRIL", "MAJ", "JUNI", "JULI", "AUGUSTI", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DECEMBER"];
+            
+            const dayName = daysOfWeek[now.getDay()];
             const dayNum = now.getDate();
             const monthName = months[now.getMonth()];
+            
             const dateEl = document.getElementById('date');
-            if (dateEl) dateEl.textContent = `${dayNum} ${monthName}`;
+            if (dateEl) dateEl.textContent = `${dayName} ${dayNum} ${monthName}`;
         }
         setInterval(updateClockAndDate, 1000);
         updateClockAndDate();
@@ -409,6 +459,7 @@
         let allActivities = {};
         let todayCompletions = {};
         let pressTimer = null;
+        let currentWeekOffset = 0;
         const todayKey = new Date().toISOString().split('T')[0];
 
         const activitiesRef = ref(db, 'activities');
@@ -424,6 +475,7 @@
                 allActivities = data;
                 renderApp();
                 renderAdminList();
+                renderWeekView();
             }
         });
 
@@ -523,7 +575,6 @@
                     <div class="press-indicator"></div>
                 `;
 
-                // Endast tillåt långtryck för avprickning om det INTE är medicin
                 if (!isMedication) {
                     const indicator = card.querySelector('.press-indicator');
                     
@@ -571,6 +622,73 @@
                 set(compRef, { completed: true, time: timeStr });
             } else {
                 set(compRef, { completed: false, time: null });
+            }
+        }
+
+        // Hjälpfunktion för veckonummer
+        function getWeekNumber(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+            return weekNo;
+        }
+
+        window.changeWeek = function(direction) {
+            currentWeekOffset += direction;
+            renderWeekView();
+        }
+
+        function renderWeekView() {
+            const container = document.getElementById('week-days-container');
+            const label = document.getElementById('week-number-label');
+            container.innerHTML = '';
+
+            const now = new Date();
+            // Justera baserat på vecko-offset
+            now.setDate(now.getDate() + (currentWeekOffset * 7));
+
+            const weekNum = getWeekNumber(now);
+            label.textContent = `Vecka ${weekNum}`;
+
+            const daysOfWeekNames = ["Söndag", "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag"];
+            const monthsNames = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"];
+
+            // Hitta måndag i den aktuella veckan
+            const currentDay = now.getDay();
+            const diffToMonday = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+            const monday = new Date(now.setDate(diffToMonday));
+
+            for (let i = 0; i < 7; i++) {
+                const dayDate = new Date(monday);
+                dayDate.setDate(monday.getDate() + i);
+                
+                const dayOfWeekIndex = dayDate.getDay(); // 0 = Sön, 1 = Mån...
+                const dayDateStr = dayDate.toISOString().split('T')[0];
+                const dayName = daysOfWeekNames[dayOfWeekIndex];
+                const formattedDateStr = `${dayDate.getDate()} ${monthsNames[dayDate.getMonth()]}`;
+
+                // Hitta aktiviteter för denna dag
+                let dayActs = [];
+                Object.values(allActivities).forEach(act => {
+                    let show = false;
+                    if (act.type === 'daily') show = true;
+                    else if (act.type === 'once' && act.date === dayDateStr) show = true;
+                    else if (act.type === 'weekly' && act.days && act.days.includes(String(dayOfWeekIndex))) show = true;
+
+                    if (show) dayActs.push(act);
+                });
+
+                const dayBox = document.createElement('div');
+                dayBox.className = 'week-day-box';
+                
+                let actsHtml = dayActs.length > 0 ? dayActs.map(a => `<div style="font-size:0.9rem; color:#1e293b;">• ${a.title} (${a.time || 'Standard'})</div>`).join('') : '<span style="color:#94a3b8; font-size:0.85rem;">Inga aktiviteter</span>';
+
+                dayBox.innerHTML = `
+                    <h4>${dayName} ${formattedDateStr}</h4>
+                    <div>${actsHtml}</div>
+                `;
+                container.appendChild(dayBox);
             }
         }
 
@@ -645,6 +763,8 @@
             const pin = prompt('Ange PIN-kod för admin:');
             if (pin === '1956') {
                 document.getElementById('admin-modal').style.display = 'block';
+                currentWeekOffset = 0;
+                renderWeekView();
             } else if (pin !== null) {
                 alert('Felaktig PIN-kod.');
             }
