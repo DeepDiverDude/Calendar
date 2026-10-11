@@ -15,37 +15,42 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none; /* Förhindra textmarkering för app-känsla */
             user-select: none;
         }
 
-        body {
+        html, body {
+            height: 100vh;
+            overflow: hidden; /* Förhindra att sidan i sin helhet scrollar */
             background-color: #f8fafc;
             color: #1e293b;
-            min-height: 100vh;
+        }
+
+        body {
             display: flex;
             flex-direction: column;
-            padding: 20px 16px;
+            padding: 16px;
             max-width: 600px;
             margin: 0 auto;
         }
 
         header {
             text-align: center;
-            margin-top: 10px;
-            margin-bottom: 24px;
+            flex-shrink: 0;
+            margin-bottom: 12px;
         }
 
         #clock {
-            font-size: 4.5rem;
+            font-size: 3.8rem;
             font-weight: 800;
             letter-spacing: -2px;
             color: #0f172a;
             line-height: 1;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         #date {
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: #64748b;
             text-transform: uppercase;
@@ -56,15 +61,16 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            padding-bottom: 20px;
+            gap: 10px;
+            min-height: 0; /* Viktigt för flex-boxar så de kan krympa */
+            overflow-y: auto; /* Scrollar endast om listan är extremt lång */
         }
 
         .activity-card {
             background: #ffffff;
-            border-radius: 20px;
-            padding: 22px 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            border-radius: 16px;
+            padding: 16px 18px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.03);
             border: 1px solid #e2e8f0;
             display: flex;
             align-items: center;
@@ -73,6 +79,8 @@
             position: relative;
             overflow: hidden;
             cursor: pointer;
+            flex: 1; /* Gör att korten växer/krymper dynamiskt för att fylla ytan */
+            max-height: 100px;
         }
 
         .activity-card.completed {
@@ -89,12 +97,12 @@
         .activity-info {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
             z-index: 2;
         }
 
         .activity-time {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 700;
             color: #2563eb;
         }
@@ -104,13 +112,13 @@
         }
 
         .activity-name {
-            font-size: 1.5rem;
+            font-size: 1.35rem;
             font-weight: 700;
             color: #0f172a;
         }
 
         .activity-status-icon {
-            font-size: 2rem;
+            font-size: 1.8rem;
             z-index: 2;
             color: #16a34a;
             display: none;
@@ -124,7 +132,7 @@
             position: absolute;
             bottom: 0;
             left: 0;
-            height: 6px;
+            height: 5px;
             background-color: #2563eb;
             width: 0%;
             transition: width 0.05s linear;
@@ -134,14 +142,13 @@
             text-align: center;
             color: #94a3b8;
             font-size: 1.1rem;
-            margin-top: 40px;
+            margin: auto;
         }
 
         footer {
             text-align: center;
-            margin-top: auto;
-            padding-top: 20px;
-            padding-bottom: 10px;
+            flex-shrink: 0;
+            padding-top: 12px;
             display: flex;
             justify-content: center;
             gap: 20px;
@@ -561,7 +568,7 @@
 
         let allActivities = {};
         let todayCompletions = {};
-        let allCompletionsCache = {}; // Cache för att läsa avprickade tider i veckovyn
+        let allCompletionsCache = {};
         let pressTimer = null;
         let currentWeekOffset = 0;
         const todayKey = new Date().toISOString().split('T')[0];
@@ -589,7 +596,6 @@
             renderApp();
         });
 
-        // Lyssna på alla completions för att få historik till veckovyn
         const allCompletionsRef = ref(db, 'completions');
         onValue(allCompletionsRef, (snapshot) => {
             allCompletionsCache = snapshot.val() || {};
@@ -794,7 +800,6 @@
                     if (show) {
                         let defaultTime = act.title.toLowerCase().includes('kväll') ? '20:00' : '08:00';
                         
-                        // Kolla om det finns sparad tid för detta datum i databasen
                         let displayTime = act.time;
                         if (!displayTime) {
                             const dayComps = allCompletionsCache[dayDateStr] || {};
