@@ -438,15 +438,33 @@
         .week-act-item {
             font-size: 1.05rem;
             color: #0f172a;
-            padding: 4px 0;
+            padding: 6px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed #f1f5f9;
+        }
+
+        .week-act-item:last-child {
+            border-bottom: none;
+        }
+
+        .week-act-left {
             display: flex;
             gap: 10px;
+            align-items: center;
         }
 
         .week-act-time {
             font-weight: 700;
             color: #64748b;
             min-width: 55px;
+        }
+
+        .week-act-check {
+            color: #16a34a;
+            font-weight: 700;
+            font-size: 1.1rem;
         }
     </style>
 </head>
@@ -552,7 +570,6 @@
 
     <!-- Starta klocka och notiskoll direkt -->
     <script>
-        // Web Audio API för behagligt pling-ljud
         function playChime() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -560,8 +577,8 @@
                 const gain = audioCtx.createGain();
                 
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 ton
-                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // A5 ton
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
                 
                 gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
@@ -576,7 +593,6 @@
             }
         }
 
-        // Begär notisbehörighet vid start om det behövs
         if ("Notification" in window && Notification.permission !== "granted") {
             Notification.requestPermission();
         }
@@ -609,7 +625,6 @@
             const dateEl = document.getElementById('date');
             if (dateEl) dateEl.textContent = `${dayName} ${dayNum} ${monthName}`;
 
-            // Kontrollera om någon aktivitet ska plinga exakt denna minut
             if (currentTimeStr !== lastTriggeredMinute && window.checkActivityReminders) {
                 lastTriggeredMinute = currentTimeStr;
                 window.checkActivityReminders(currentTimeStr);
@@ -665,6 +680,7 @@
         onValue(completionsRef, (snapshot) => {
             todayCompletions = snapshot.val() || {};
             renderApp();
+            renderWeekView();
         });
 
         const allCompletionsRef = ref(db, 'completions');
@@ -709,14 +725,13 @@
             });
         });
 
-        // Funktion som anropas varje minut för att kolla om notis ska skickas
         window.checkActivityReminders = function(currentTimeStr) {
             const now = new Date();
             const currentDayOfWeek = now.getDay();
             const todayDateStr = now.toISOString().split('T')[0];
 
             Object.entries(allActivities).forEach(([id, act]) => {
-                if (!act.notify) return; // Endast om notis är aktiverad
+                if (!act.notify) return;
 
                 let show = false;
                 if (act.type === 'daily') show = true;
@@ -728,7 +743,6 @@
                     let targetTime = act.time || defaultTime;
 
                     if (targetTime === currentTimeStr) {
-                        // Kontrollera att den inte redan är utförd idag
                         const isCompleted = todayCompletions[id] && todayCompletions[id].completed;
                         if (!isCompleted) {
                             triggerNotification("Dags för aktivitet!", act.title + ` (${targetTime})`);
@@ -842,7 +856,6 @@
             }
         }
 
-        // Veckonummer
         function getWeekNumber(d) {
             d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
             d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
@@ -890,6 +903,8 @@
                 const formattedDateStr = `${dayDate.getDate()} ${monthsNames[dayDate.getMonth()]}`;
                 const isToday = (dayDateStr === todayStr);
 
+                const dayComps = allCompletionsCache[dayDateStr] || {};
+
                 let dayActs = [];
                 Object.entries(allActivities).forEach(([id, act]) => {
                     let show = false;
@@ -901,8 +916,9 @@
                         let defaultTime = act.title.toLowerCase().includes('kväll') ? '20:00' : '08:00';
                         
                         let displayTime = act.time;
+                        let isCompleted = dayComps[id] && dayComps[id].completed;
+
                         if (!displayTime) {
-                            const dayComps = allCompletionsCache[dayDateStr] || {};
                             const comp = dayComps[id];
                             if (comp && comp.time) {
                                 displayTime = comp.time;
@@ -912,7 +928,7 @@
                         }
 
                         let sortTime = act.time || displayTime;
-                        dayActs.push({ ...act, displayTime, sortTime });
+                        dayActs.push({ ...act, displayTime, sortTime, isCompleted });
                     }
                 });
 
@@ -923,8 +939,11 @@
                 
                 let actsHtml = dayActs.length > 0 ? dayActs.map(a => `
                     <div class="week-act-item">
-                        <span class="week-act-time">${a.displayTime}</span>
-                        <span>${a.title}</span>
+                        <div class="week-act-left">
+                            <span class="week-act-time">${a.displayTime}</span>
+                            <span>${a.title}</span>
+                        </div>
+                        ${a.isCompleted ? '<span class="week-act-check">✓</span>' : ''}
                     </div>
                 `).join('') : '<span style="color:#94a3b8; font-size:0.9rem;">Inga aktiviteter</span>';
 
@@ -1051,7 +1070,6 @@
             }
         }
 
-        // Öppna/Stäng Veckovy
         document.getElementById('open-week-btn').addEventListener('click', () => {
             currentWeekOffset = 0;
             renderWeekView();
@@ -1062,7 +1080,6 @@
             document.getElementById('week-modal').style.display = 'none';
         });
 
-        // Öppna/Stäng Admin
         document.getElementById('admin-btn').addEventListener('click', () => {
             const pin = prompt('Ange PIN-kod för admin:');
             if (pin === '1956') {
