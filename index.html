@@ -120,7 +120,6 @@
             display: block;
         }
 
-        /* Långtrycks-cirkel */
         .press-indicator {
             position: absolute;
             bottom: 0;
@@ -138,7 +137,6 @@
             margin-top: 40px;
         }
 
-        /* Diskret admin-länk längst ner */
         footer {
             text-align: center;
             margin-top: auto;
@@ -161,7 +159,6 @@
             color: #64748b;
         }
 
-        /* Modal / Adminvy */
         #admin-modal {
             display: none;
             position: fixed;
@@ -230,7 +227,7 @@
             margin-bottom: 6px;
         }
 
-        input[type="text"], input[type="time"], input[type="date"], input[type="password"] {
+        input[type="text"], input[type="time"], input[type="date"], select {
             width: 100%;
             padding: 12px;
             border: 1px solid #cbd5e1;
@@ -240,7 +237,7 @@
             background: #fff;
         }
 
-        input:focus {
+        input:focus, select:focus {
             border-color: #2563eb;
         }
 
@@ -311,7 +308,7 @@
     </header>
 
     <main id="activities-container">
-        <!-- Aktiviteter laddas här -->
+        <div class="no-activities">Laddar aktiviteter...</div>
     </main>
 
     <footer>
@@ -333,10 +330,329 @@
                     <input type="text" id="new-title" placeholder="T.ex. Promenad, Lunch">
                 </div>
                 <div class="form-group">
-                    <label>Klockslag (lämna tomt för morgon/kvällsmedicin om du vill)</label>
+                    <label>Klockslag (lämna tomt för morgon/kvällsmedicin)</label>
                     <input type="time" id="new-time">
                 </div>
                 <div class="form-group">
                     <label>Typ av upprepning</label>
-                    <select id="new-type" style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font-size:1rem;" onchange="toggleRepeatOptions()">
-                        <option value="daily">Varje dag</
+                    <select id="new-type" onchange="toggleRepeatOptions()">
+                        <option value="daily">Varje dag</option>
+                        <option value="once">En specifik dag</option>
+                        <option value="weekly">Valda veckodagar</option>
+                    </select>
+                </div>
+                <div class="form-group" id="date-group" style="display:none;">
+                    <label>Datum</label>
+                    <input type="date" id="new-date">
+                </div>
+                <div class="form-group" id="days-group" style="display:none;">
+                    <label>Välj veckodagar</label>
+                    <div class="days-selector">
+                        <label class="day-checkbox"><input type="checkbox" value="1"> Mån</label>
+                        <label class="day-checkbox"><input type="checkbox" value="2"> Tis</label>
+                        <label class="day-checkbox"><input type="checkbox" value="3"> Ons</label>
+                        <label class="day-checkbox"><input type="checkbox" value="4"> Tors</label>
+                        <label class="day-checkbox"><input type="checkbox" value="5"> Fre</label>
+                        <label class="day-checkbox"><input type="checkbox" value="6"> Lör</label>
+                        <label class="day-checkbox"><input type="checkbox" value="0"> Sön</label>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="addActivity()">Spara aktivitet</button>
+            </div>
+
+            <div class="admin-section">
+                <h3>Aktuella aktiviteter</h3>
+                <div id="admin-activities-list">
+                    <!-- Fylls via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Starta klocka direkt oberoende av Firebase -->
+    <script>
+        function updateClockAndDate() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const clockEl = document.getElementById('clock');
+            if (clockEl) clockEl.textContent = `${hours}:${minutes}`;
+
+            const months = ["JANUARI", "FEBRUARI", "MARS", "APRIL", "MAJ", "JUNI", "JULI", "AUGUSTI", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DECEMBER"];
+            const dayNum = now.getDate();
+            const monthName = months[now.getMonth()];
+            const dateEl = document.getElementById('date');
+            if (dateEl) dateEl.textContent = `${dayNum} ${monthName}`;
+        }
+        setInterval(updateClockAndDate, 1000);
+        updateClockAndDate();
+    </script>
+
+    <!-- Firebase Modul -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, push, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            databaseURL: "https://calendar-d302a-default-rtdb.europe-west1.firebasedatabase.app"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const medConfig = {
+            databaseURL: "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app"
+        };
+        const medApp = initializeApp(medConfig, "medicinApp");
+        const medDb = getDatabase(medApp);
+
+        let allActivities = {};
+        let todayCompletions = {};
+        let pressTimer = null;
+        const todayKey = new Date().toISOString().split('T')[0];
+
+        // Läs in aktiviteter
+        const activitiesRef = ref(db, 'activities');
+        onValue(activitiesRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                const defaultActs = {
+                    "morgon": { title: "Morgonmedicin", type: "daily", time: "" },
+                    "kvall": { title: "Kvällsmedicin", type: "daily", time: "" }
+                };
+                set(activitiesRef, defaultActs);
+            } else {
+                allActivities = data;
+                renderApp();
+                renderAdminList();
+            }
+        }, (error) => {
+            console.error("Fel vid hämtning av aktiviteter:", error);
+            document.getElementById('activities-container').innerHTML = '<div class="no-activities">Kunde inte ansluta till databasen.</div>';
+        });
+
+        // Läs in avprickningar idag
+        const completionsRef = ref(db, `completions/${todayKey}`);
+        onValue(completionsRef, (snapshot) => {
+            todayCompletions = snapshot.val() || {};
+            renderApp();
+        });
+
+        // Lyssna på medicinknappen
+        const clicksRef = ref(medDb, 'clicks');
+        onValue(clicksRef, (snapshot) => {
+            const clicks = snapshot.val();
+            if (!clicks) return;
+
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+
+            Object.values(clicks).forEach(click => {
+                if (!click.timestamp) return;
+                const clickDate = new Date(click.timestamp * 1000);
+                const clickDateStr = clickDate.toISOString().split('T')[0];
+
+                if (clickDateStr === todayStr) {
+                    const hours = clickDate.getHours();
+                    const minutes = String(clickDate.getMinutes()).padStart(2, '0');
+                    const timeStr = `${String(hours).padStart(2, '0')}:${minutes}`;
+
+                    let targetKey = null;
+                    Object.entries(allActivities).forEach(([key, act]) => {
+                        const titleLower = act.title.toLowerCase();
+                        if (hours < 12 && titleLower.includes('morgonmedicin')) {
+                            targetKey = key;
+                        } else if (hours >= 12 && titleLower.includes('kvällsmedicin')) {
+                            targetKey = key;
+                        }
+                    });
+
+                    if (targetKey) {
+                        const compRef = ref(db, `completions/${todayKey}/${targetKey}`);
+                        set(compRef, { completed: true, time: timeStr });
+                    }
+                }
+            });
+        });
+
+        function renderApp() {
+            const container = document.getElementById('activities-container');
+            container.innerHTML = '';
+
+            const now = new Date();
+            const currentDayOfWeek = now.getDay();
+            const todayDateStr = now.toISOString().split('T')[0];
+
+            let todaysList = [];
+
+            Object.entries(allActivities).forEach(([id, act]) => {
+                let show = false;
+                if (act.type === 'daily') {
+                    show = true;
+                } else if (act.type === 'once' && act.date === todayDateStr) {
+                    show = true;
+                } else if (act.type === 'weekly' && act.days && act.days.includes(String(currentDayOfWeek))) {
+                    show = true;
+                }
+
+                if (show) {
+                    let sortTime = act.time;
+                    if (!sortTime) {
+                        sortTime = act.title.toLowerCase().includes('kväll') ? '20:00' : '08:00';
+                    }
+                    todaysList.push({ id, ...act, sortTime });
+                }
+            });
+
+            todaysList.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+
+            if (todaysList.length === 0) {
+                container.innerHTML = '<div class="no-activities">Inga aktiviteter inlagda idag.</div>';
+                return;
+            }
+
+            todaysList.forEach(act => {
+                const isCompleted = todayCompletions[act.id] && todayCompletions[act.id].completed;
+                const completedTime = isCompleted && todayCompletions[act.id].time ? `(Utfört ${todayCompletions[act.id].time})` : (isCompleted ? 'Utfört' : '');
+
+                const card = document.createElement('div');
+                card.className = `activity-card ${isCompleted ? 'completed' : ''}`;
+                card.innerHTML = `
+                    <div class="activity-info">
+                        <div class="activity-time">${act.time || ''} ${completedTime}</div>
+                        <div class="activity-name">${act.title}</div>
+                    </div>
+                    <div class="activity-status-icon">✓</div>
+                    <div class="press-indicator"></div>
+                `;
+
+                const indicator = card.querySelector('.press-indicator');
+                
+                const startPress = (e) => {
+                    e.preventDefault();
+                    indicator.style.width = '100%';
+                    indicator.style.transition = 'width 1s linear';
+
+                    pressTimer = setTimeout(() => {
+                        toggleCompletion(act.id, !isCompleted);
+                        resetPress(indicator);
+                    }, 1000);
+                };
+
+                const cancelPress = () => {
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                        resetPress(indicator);
+                    }
+                };
+
+                card.addEventListener('mousedown', startPress);
+                card.addEventListener('touchstart', startPress);
+                card.addEventListener('mouseup', cancelPress);
+                card.addEventListener('mouseleave', cancelPress);
+                card.addEventListener('touchend', cancelPress);
+                card.addEventListener('touchcancel', cancelPress);
+
+                container.appendChild(card);
+            });
+        }
+
+        function resetPress(indicator) {
+            indicator.style.transition = 'none';
+            indicator.style.width = '0%';
+        }
+
+        function toggleCompletion(id, status) {
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const compRef = ref(db, `completions/${todayKey}/${id}`);
+            if (status) {
+                set(compRef, { completed: true, time: timeStr });
+            } else {
+                set(compRef, { completed: false, time: null });
+            }
+        }
+
+        window.toggleRepeatOptions = function() {
+            const type = document.getElementById('new-type').value;
+            document.getElementById('date-group').style.display = type === 'once' ? 'block' : 'none';
+            document.getElementById('days-group').style.display = type === 'weekly' ? 'block' : 'none';
+        }
+
+        window.addActivity = function() {
+            const title = document.getElementById('new-title').value.trim();
+            const time = document.getElementById('new-time').value;
+            const type = document.getElementById('new-type').value;
+            const date = document.getElementById('new-date').value;
+            
+            const checkboxes = document.querySelectorAll('.days-selector input[type="checkbox"]:checked');
+            const days = Array.from(checkboxes).map(cb => cb.value);
+
+            if (!title) {
+                alert('Vänligen fyll i ett aktivitetsnamn.');
+                return;
+            }
+
+            if (type === 'once' && !date) {
+                alert('Vänligen välj ett datum.');
+                return;
+            }
+
+            if (type === 'weekly' && days.length === 0) {
+                alert('Vänligen välj minst en veckodag.');
+                return;
+            }
+
+            const newActRef = push(ref(db, 'activities'));
+            set(newActRef, { title, time, type, date, days });
+
+            document.getElementById('new-title').value = '';
+            document.getElementById('new-time').value = '';
+            alert('Aktiviteten har lagts till!');
+        }
+
+        function renderAdminList() {
+            const listContainer = document.getElementById('admin-activities-list');
+            listContainer.innerHTML = '';
+
+            if (Object.keys(allActivities).length === 0) {
+                listContainer.innerHTML = '<p style="color:#94a3b8;">Inga sparade aktiviteter.</p>';
+                return;
+            }
+
+            Object.entries(allActivities).forEach(([id, act]) => {
+                const item = document.createElement('div');
+                item.className = 'admin-item';
+                item.innerHTML = `
+                    <div>
+                        <strong>${act.title}</strong><br>
+                        <small style="color:#64748b;">${act.time || 'Ingen tid angiven'} (${act.type})</small>
+                    </div>
+                    <button class="btn-danger" onclick="deleteActivity('${id}')">Ta bort</button>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        window.deleteActivity = function(id) {
+            if (confirm('Är du säker på att du vill ta bort denna aktivitet?')) {
+                remove(ref(db, `activities/${id}`));
+            }
+        }
+
+        document.getElementById('admin-btn').addEventListener('click', () => {
+            const pin = prompt('Ange PIN-kod för admin:');
+            if (pin === '1956') {
+                document.getElementById('admin-modal').style.display = 'block';
+            } else if (pin !== null) {
+                alert('Felaktig PIN-kod.');
+            }
+        });
+
+        document.getElementById('close-admin').addEventListener('click', () => {
+            document.getElementById('admin-modal').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
