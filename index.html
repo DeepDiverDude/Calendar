@@ -330,7 +330,7 @@
                     <input type="text" id="new-title" placeholder="T.ex. Promenad, Lunch">
                 </div>
                 <div class="form-group">
-                    <label>Klockslag (lämna tomt för morgon/kvällsmedicin)</label>
+                    <label>Klockslag (lämna tomt för automatisk morgon/kväll)</label>
                     <input type="time" id="new-time">
                 </div>
                 <div class="form-group">
@@ -505,9 +505,8 @@
 
             todaysList.forEach(act => {
                 const isCompleted = todayCompletions[act.id] && todayCompletions[act.id].completed;
+                const isMedication = act.title.toLowerCase().includes('medicin');
                 
-                // Bestäm tid att visa: Om aktiviteten har en fast tid används den. 
-                // För medicin (utan fast tid): visa exakt tid om den är utförd, annars 08:00 eller 20:00.
                 let displayTime = act.time;
                 if (!displayTime) {
                     displayTime = (isCompleted && todayCompletions[act.id].time) ? todayCompletions[act.id].time : act.defaultTime;
@@ -524,33 +523,36 @@
                     <div class="press-indicator"></div>
                 `;
 
-                const indicator = card.querySelector('.press-indicator');
-                
-                const startPress = (e) => {
-                    e.preventDefault();
-                    indicator.style.width = '100%';
-                    indicator.style.transition = 'width 1s linear';
+                // Endast tillåt långtryck för avprickning om det INTE är medicin
+                if (!isMedication) {
+                    const indicator = card.querySelector('.press-indicator');
+                    
+                    const startPress = (e) => {
+                        e.preventDefault();
+                        indicator.style.width = '100%';
+                        indicator.style.transition = 'width 1s linear';
 
-                    pressTimer = setTimeout(() => {
-                        toggleCompletion(act.id, !isCompleted);
-                        resetPress(indicator);
-                    }, 1000);
-                };
+                        pressTimer = setTimeout(() => {
+                            toggleCompletion(act.id, !isCompleted);
+                            resetPress(indicator);
+                        }, 1000);
+                    };
 
-                const cancelPress = () => {
-                    if (pressTimer) {
-                        clearTimeout(pressTimer);
-                        pressTimer = null;
-                        resetPress(indicator);
-                    }
-                };
+                    const cancelPress = () => {
+                        if (pressTimer) {
+                            clearTimeout(pressTimer);
+                            pressTimer = null;
+                            resetPress(indicator);
+                        }
+                    };
 
-                card.addEventListener('mousedown', startPress);
-                card.addEventListener('touchstart', startPress);
-                card.addEventListener('mouseup', cancelPress);
-                card.addEventListener('mouseleave', cancelPress);
-                card.addEventListener('touchend', cancelPress);
-                card.addEventListener('touchcancel', cancelPress);
+                    card.addEventListener('mousedown', startPress);
+                    card.addEventListener('touchstart', startPress);
+                    card.addEventListener('mouseup', cancelPress);
+                    card.addEventListener('mouseleave', cancelPress);
+                    card.addEventListener('touchend', cancelPress);
+                    card.addEventListener('touchcancel', cancelPress);
+                }
 
                 container.appendChild(card);
             });
