@@ -15,13 +15,13 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             -webkit-tap-highlight-color: transparent;
-            -webkit-user-select: none; /* Förhindra textmarkering för app-känsla */
+            -webkit-user-select: none;
             user-select: none;
         }
 
         html, body {
             height: 100vh;
-            overflow: hidden; /* Förhindra att sidan i sin helhet scrollar */
+            overflow: hidden;
             background-color: #f8fafc;
             color: #1e293b;
         }
@@ -62,8 +62,8 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            min-height: 0; /* Viktigt för flex-boxar så de kan krympa */
-            overflow-y: auto; /* Scrollar endast om listan är extremt lång */
+            min-height: 0;
+            overflow-y: auto;
         }
 
         .activity-card {
@@ -79,7 +79,7 @@
             position: relative;
             overflow: hidden;
             cursor: pointer;
-            flex: 1; /* Gör att korten växer/krymper dynamiskt för att fylla ytan */
+            flex: 1;
             max-height: 100px;
         }
 
@@ -252,6 +252,26 @@
 
         input:focus, select:focus {
             border-color: #2563eb;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1e293b;
+            cursor: pointer;
+            background: #f1f5f9;
+            padding: 12px;
+            border-radius: 10px;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #2563eb;
+            cursor: pointer;
         }
 
         .days-selector {
@@ -489,6 +509,11 @@
                     <input type="time" id="new-time">
                 </div>
                 <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="new-notify"> 🔔 Skicka ljudnotis och pling när tiden är inne
+                    </label>
+                </div>
+                <div class="form-group">
                     <label>Typ av upprepning</label>
                     <select id="new-type" onchange="toggleRepeatOptions()">
                         <option value="daily">Varje dag</option>
@@ -525,14 +550,54 @@
         </div>
     </div>
 
-    <!-- Starta klocka direkt -->
+    <!-- Starta klocka och notiskoll direkt -->
     <script>
+        // Web Audio API för behagligt pling-ljud
+        function playChime() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 ton
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // A5 ton
+                
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 1.2);
+            } catch (e) {
+                console.log("Ljud kunde inte spelas upp automatiskt:", e);
+            }
+        }
+
+        // Begär notisbehörighet vid start om det behövs
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+
+        function triggerNotification(title, body) {
+            playChime();
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(title, { body: body, icon: "" });
+            }
+        }
+
+        let lastTriggeredMinute = "";
+
         function updateClockAndDate() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
+            const currentTimeStr = `${hours}:${minutes}`;
+
             const clockEl = document.getElementById('clock');
-            if (clockEl) clockEl.textContent = `${hours}:${minutes}`;
+            if (clockEl) clockEl.textContent = currentTimeStr;
 
             const daysOfWeek = ["SÖNDAG", "MÅNDAG", "TISDAG", "ONSDAG", "TORSDAG", "FREDAG", "LÖRDAG"];
             const months = ["JANUARI", "FEBRUARI", "MARS", "APRIL", "MAJ", "JUNI", "JULI", "AUGUSTI", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DECEMBER"];
@@ -543,6 +608,12 @@
             
             const dateEl = document.getElementById('date');
             if (dateEl) dateEl.textContent = `${dayName} ${dayNum} ${monthName}`;
+
+            // Kontrollera om någon aktivitet ska plinga exakt denna minut
+            if (currentTimeStr !== lastTriggeredMinute && window.checkActivityReminders) {
+                lastTriggeredMinute = currentTimeStr;
+                window.checkActivityReminders(currentTimeStr);
+            }
         }
         setInterval(updateClockAndDate, 1000);
         updateClockAndDate();
@@ -578,8 +649,8 @@
             const data = snapshot.val();
             if (!data) {
                 const defaultActs = {
-                    "morgon": { title: "Morgonmedicin", type: "daily", time: "" },
-                    "kvall": { title: "Kvällsmedicin", type: "daily", time: "" }
+                    "morgon": { title: "Morgonmedicin", type: "daily", time: "", notify: true },
+                    "kvall": { title: "Kvällsmedicin", type: "daily", time: "", notify: true }
                 };
                 set(activitiesRef, defaultActs);
             } else {
@@ -637,6 +708,35 @@
                 }
             });
         });
+
+        // Funktion som anropas varje minut för att kolla om notis ska skickas
+        window.checkActivityReminders = function(currentTimeStr) {
+            const now = new Date();
+            const currentDayOfWeek = now.getDay();
+            const todayDateStr = now.toISOString().split('T')[0];
+
+            Object.entries(allActivities).forEach(([id, act]) => {
+                if (!act.notify) return; // Endast om notis är aktiverad
+
+                let show = false;
+                if (act.type === 'daily') show = true;
+                else if (act.type === 'once' && act.date === todayDateStr) show = true;
+                else if (act.type === 'weekly' && act.days && act.days.includes(String(currentDayOfWeek))) show = true;
+
+                if (show) {
+                    let defaultTime = act.title.toLowerCase().includes('kväll') ? '20:00' : '08:00';
+                    let targetTime = act.time || defaultTime;
+
+                    if (targetTime === currentTimeStr) {
+                        // Kontrollera att den inte redan är utförd idag
+                        const isCompleted = todayCompletions[id] && todayCompletions[id].completed;
+                        if (!isCompleted) {
+                            triggerNotification("Dags för aktivitet!", act.title + ` (${targetTime})`);
+                        }
+                    }
+                }
+            });
+        };
 
         function renderApp() {
             const container = document.getElementById('activities-container');
@@ -846,6 +946,7 @@
             const editId = document.getElementById('edit-activity-id').value;
             const title = document.getElementById('new-title').value.trim();
             const time = document.getElementById('new-time').value;
+            const notify = document.getElementById('new-notify').checked;
             const type = document.getElementById('new-type').value;
             const date = document.getElementById('new-date').value;
             
@@ -868,11 +969,11 @@
             }
 
             if (editId) {
-                update(ref(db, `activities/${editId}`), { title, time, type, date, days });
+                update(ref(db, `activities/${editId}`), { title, time, notify, type, date, days });
                 alert('Aktiviteten har uppdaterats!');
             } else {
                 const newActRef = push(ref(db, 'activities'));
-                set(newActRef, { title, time, type, date, days });
+                set(newActRef, { title, time, notify, type, date, days });
                 alert('Aktiviteten har lagts till!');
             }
 
@@ -886,6 +987,7 @@
             document.getElementById('edit-activity-id').value = id;
             document.getElementById('new-title').value = act.title;
             document.getElementById('new-time').value = act.time || '';
+            document.getElementById('new-notify').checked = !!act.notify;
             document.getElementById('new-type').value = act.type || 'daily';
             document.getElementById('new-date').value = act.date || '';
             
@@ -906,6 +1008,7 @@
             document.getElementById('edit-activity-id').value = '';
             document.getElementById('new-title').value = '';
             document.getElementById('new-time').value = '';
+            document.getElementById('new-notify').checked = false;
             document.getElementById('new-type').value = 'daily';
             document.getElementById('new-date').value = '';
             document.querySelectorAll('.days-selector input[type="checkbox"]').forEach(cb => cb.checked = false);
@@ -930,7 +1033,7 @@
                 item.className = 'admin-item';
                 item.innerHTML = `
                     <div onclick="editActivity('${id}')" style="flex:1;">
-                        <strong>${act.title}</strong><br>
+                        <strong>${act.title}</strong> ${act.notify ? '🔔' : ''}<br>
                         <small style="color:#64748b;">${act.time || 'Ingen tid angiven'} (${act.type})</small>
                     </div>
                     <div class="admin-item-actions">
