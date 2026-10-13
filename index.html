@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Min Dag</title>
-    <link rel="manifest" href="data:application/manifest+json,{&quot;name&quot;:&quot;Min Dag&quot;,&quot;short_name&quot;:&quot;MinDag&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#f8fafc&quot;,&quot;theme_color&quot;:&quot;#ffffff&quot;}">
+    <link rel="manifest" href="data:application/manifest+json,{&quot;name&quot;:&quot;Min Dag&quot;,&quot;short_name&quot;:&quot;MinDag&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#f8fafc&quot;,&quot;theme_color&quot;:&quot;#ffffff&quot;">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Min Dag">
@@ -646,11 +646,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const medConfig = {
-            databaseURL: "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app"
-        };
-        const medApp = initializeApp(medConfig, "medicinApp");
-        const medDb = getDatabase(medApp);
+        const medFirebaseURL = "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app";
 
         let allActivities = {};
         let todayCompletions = {};
@@ -689,42 +685,55 @@
             renderWeekView();
         });
 
-        // Lyssna direkt på roten i medicindatabasen (läser av tidsstämplarna under de unika ID-nycklarna)
-        const rootRef = ref(medDb);
-        onValue(rootRef, (snapshot) => {
-            const data = snapshot.val();
-            if (!data) return;
+        // Hämtar loggarna via fetch direkt mot roten (precis som din fungerande medicinlogg.html)
+        async function fetchAndCheckLogs() {
+            try {
+                const res = await fetch(`${medFirebaseURL}/.json`);
+                const data = await res.json();
+                
+                if (!data) return;
 
-            const now = new Date();
-            const todayStr = now.toISOString().split('T')[0];
+                const now = new Date();
+                const todayStr = now.toISOString().split('T')[0];
 
-            Object.values(data).forEach(entry => {
-                if (!entry || !entry.timestamp) return;
-                const clickDate = new Date(entry.timestamp * 1000);
-                const clickDateStr = clickDate.toISOString().split('T')[0];
+                const logs = Object.keys(data).map(key => ({
+                    id: key,
+                    timestamp: data[key].timestamp,
+                    battery: data[key].battery
+                })).filter(log => log.timestamp);
 
-                if (clickDateStr === todayStr) {
-                    const hours = clickDate.getHours();
-                    const minutes = String(clickDate.getMinutes()).padStart(2, '0');
-                    const timeStr = `${String(hours).padStart(2, '0')}:${minutes}`;
+                logs.forEach(log => {
+                    const clickDate = new Date(log.timestamp * 1000);
+                    const clickDateStr = clickDate.toISOString().split('T')[0];
 
-                    let targetKey = null;
-                    Object.entries(allActivities).forEach(([key, act]) => {
-                        const titleLower = act.title.toLowerCase();
-                        if (hours < 12 && titleLower.includes('morgonmedicin')) {
-                            targetKey = key;
-                        } else if (hours >= 12 && titleLower.includes('kvällsmedicin')) {
-                            targetKey = key;
+                    if (clickDateStr === todayStr) {
+                        const hours = clickDate.getHours();
+                        const minutes = String(clickDate.getMinutes()).padStart(2, '0');
+                        const timeStr = `${String(hours).padStart(2, '0')}:${minutes}`;
+
+                        let targetKey = null;
+                        Object.entries(allActivities).forEach(([key, act]) => {
+                            const titleLower = act.title.toLowerCase();
+                            if (hours < 12 && titleLower.includes('morgonmedicin')) {
+                                targetKey = key;
+                            } else if (hours >= 12 && titleLower.includes('kvällsmedicin')) {
+                                targetKey = key;
+                            }
+                        });
+
+                        if (targetKey) {
+                            const compRef = ref(db, `completions/${todayKey}/${targetKey}`);
+                            set(compRef, { completed: true, time: timeStr });
                         }
-                    });
-
-                    if (targetKey) {
-                        const compRef = ref(db, `completions/${todayKey}/${targetKey}`);
-                        set(compRef, { completed: true, time: timeStr });
                     }
-                }
-            });
-        });
+                });
+            } catch (error) {
+                console.error("Fel vid hämtning av medicinloggar:", error);
+            }
+        }
+
+        fetchAndCheckLogs();
+        setInterval(fetchAndCheckLogs, 10000);
 
         window.checkActivityReminders = function(currentTimeStr) {
             const now = new Date();
