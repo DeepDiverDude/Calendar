@@ -240,45 +240,24 @@
             margin-bottom: 6px;
         }
 
-        input[type="text"], select {
+        /* Gemensam klass för ALLA inmatningsfält för att garantera exakt samma storlek och bredd */
+        .form-control, input[type="text"], select, input[type="date"], .time-picker-input {
             width: 100%;
-            padding: 12px;
+            height: 48px;
+            padding: 0 12px;
             border: 1px solid #cbd5e1;
             border-radius: 10px;
             font-size: 1rem;
-            outline: none;
-            background: #fff;
-        }
-
-        /* Förstorad och touchvänlig datumväljare */
-        input[type="date"] {
-            width: 100%;
-            padding: 16px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            font-size: 1.1rem;
             outline: none;
             background: #fff;
             color: #1e293b;
-            cursor: pointer;
-        }
-
-        /* Tidsväljare fält - exakt samma bredd och box-modell som övriga fält */
-        .time-picker-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            font-size: 1rem;
-            background: #fff;
-            cursor: pointer;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            color: #1e293b;
+            justify-content: space-between;
+            cursor: pointer;
         }
 
-        input:focus, select:focus, .time-picker-input:focus {
+        input[type="text"]:focus, select:focus, input[type="date"]:focus, .time-picker-input:focus {
             border-color: #2563eb;
         }
 
@@ -358,6 +337,7 @@
             background: #f1f5f9;
             padding: 12px;
             border-radius: 10px;
+            height: 48px;
         }
 
         .checkbox-label input[type="checkbox"] {
@@ -638,7 +618,6 @@
                 </div>
                 <div class="form-group" id="date-group" style="display:none;">
                     <label>Datum</label>
-                    <!-- Datumfältet öppnar kalendern direkt vid klick och är förstorat -->
                     <input type="date" id="new-date" onclick="this.showPicker && this.showPicker()">
                 </div>
                 <div class="form-group" id="days-group" style="display:none;">
