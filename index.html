@@ -660,8 +660,8 @@
             const data = snapshot.val();
             if (!data) {
                 const defaultActs = {
-                    "morgon": { title: "Morgonmedicin", type: "daily", time: "", notify: true },
-                    "kvall": { title: "Kvällsmedicin", type: "daily", time: "", notify: true }
+                    "morgon": { title: "Morgonmedicin", type: "daily", time: "", notify: true, secret: "1956" },
+                    "kvall": { title: "Kvällsmedicin", type: "daily", time: "", notify: true, secret: "1956" }
                 };
                 set(activitiesRef, defaultActs);
             } else {
@@ -685,7 +685,6 @@
             renderWeekView();
         });
 
-        // Hämtar loggarna via fetch direkt mot roten och matchar på ordet "medicin" beroende på tid på dygnet
         async function fetchAndCheckLogs() {
             try {
                 const res = await fetch(`${medFirebaseURL}/.json`);
@@ -714,14 +713,12 @@
                         let targetKey = null;
                         Object.entries(allActivities).forEach(([key, act]) => {
                             const titleLower = act.title.toLowerCase();
-                            // Matchar om aktiviteten innehåller ordet "medicin"
                             if (titleLower.includes('medicin')) {
                                 if (hours < 12 && titleLower.includes('morgon')) {
                                     targetKey = key;
                                 } else if (hours >= 12 && titleLower.includes('kväll')) {
                                     targetKey = key;
                                 } else if (!targetKey) {
-                                    // Fallback om det bara finns en "Medicin"-aktivitet eller om den varken heter morgon/kväll explicit
                                     targetKey = key;
                                 }
                             }
@@ -729,7 +726,7 @@
 
                         if (targetKey) {
                             const compRef = ref(db, `completions/${todayKey}/${targetKey}`);
-                            set(compRef, { completed: true, time: timeStr });
+                            set(compRef, { completed: true, time: timeStr, secret: "1956" });
                         }
                     }
                 });
@@ -866,9 +863,9 @@
             const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             const compRef = ref(db, `completions/${todayKey}/${id}`);
             if (status) {
-                set(compRef, { completed: true, time: timeStr });
+                set(compRef, { completed: true, time: timeStr, secret: "1956" });
             } else {
-                set(compRef, { completed: false, time: null });
+                set(compRef, { completed: false, time: null, secret: "1956" });
             }
         }
 
@@ -1003,12 +1000,14 @@
                 return;
             }
 
+            const activityData = { title, time, notify, type, date, days, secret: "1956" };
+
             if (editId) {
-                update(ref(db, `activities/${editId}`), { title, time, notify, type, date, days });
+                update(ref(db, `activities/${editId}`), activityData);
                 alert('Aktiviteten har uppdaterats!');
             } else {
                 const newActRef = push(ref(db, 'activities'));
-                set(newActRef, { title, time, notify, type, date, days });
+                set(newActRef, activityData);
                 alert('Aktiviteten har lagts till!');
             }
 
