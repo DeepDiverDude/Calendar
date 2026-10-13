@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Min Dag</title>
-    <link rel="manifest" href="data:application/manifest+json,{&quot;name&quot;:&quot;Min Dag&quot;,&quot;short_name&quot;:&quot;MinDag&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#f8fafc&quot;,&quot;theme_color&quot;:&quot;#ffffff&quot;">
+    <link rel="manifest" href="data:application/manifest+json,{&quot;name&quot;:&quot;Min Dag&quot;,&quot;short_name&quot;:&quot;MinDag&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#f8fafc&quot;,&quot;theme_color&quot;:&quot;#ffffff&quot;}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Min Dag">
@@ -685,7 +685,7 @@
             renderWeekView();
         });
 
-        // Hämtar loggarna via fetch direkt mot roten (precis som din fungerande medicinlogg.html)
+        // Hämtar loggarna via fetch direkt mot roten och matchar på ordet "medicin" beroende på tid på dygnet
         async function fetchAndCheckLogs() {
             try {
                 const res = await fetch(`${medFirebaseURL}/.json`);
@@ -714,10 +714,16 @@
                         let targetKey = null;
                         Object.entries(allActivities).forEach(([key, act]) => {
                             const titleLower = act.title.toLowerCase();
-                            if (hours < 12 && titleLower.includes('morgonmedicin')) {
-                                targetKey = key;
-                            } else if (hours >= 12 && titleLower.includes('kvällsmedicin')) {
-                                targetKey = key;
+                            // Matchar om aktiviteten innehåller ordet "medicin"
+                            if (titleLower.includes('medicin')) {
+                                if (hours < 12 && titleLower.includes('morgon')) {
+                                    targetKey = key;
+                                } else if (hours >= 12 && titleLower.includes('kväll')) {
+                                    targetKey = key;
+                                } else if (!targetKey) {
+                                    // Fallback om det bara finns en "Medicin"-aktivitet eller om den varken heter morgon/kväll explicit
+                                    targetKey = key;
+                                }
                             }
                         });
 
