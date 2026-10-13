@@ -32,6 +32,47 @@
             padding: 16px;
             max-width: 600px;
             margin: 0 auto;
+            position: relative;
+        }
+
+        /* Pull-to-refresh dragyta och indikator */
+        #pull-touch-zone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            z-index: 3900;
+        }
+
+        #pull-refresh-indicator {
+            position: fixed;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2563eb;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: top 0.2s ease;
+            z-index: 4000;
+            pointer-events: none;
+        }
+
+        /* Svart sovläge-skärm */
+        #sleep-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000000;
+            z-index: 9999;
+            cursor: pointer;
         }
 
         header {
@@ -150,8 +191,9 @@
             flex-shrink: 0;
             padding-top: 12px;
             display: flex;
-            justify-content: center;
-            gap: 20px;
+            justify-content: space-around;
+            align-items: center;
+            gap: 8px;
         }
 
         .footer-link {
@@ -161,9 +203,10 @@
             font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
-            padding: 8px 16px;
+            padding: 8px 12px;
             border-radius: 8px;
             transition: color 0.2s, background-color 0.2s;
+            white-space: nowrap;
         }
 
         .footer-link:hover {
@@ -636,6 +679,13 @@
 </head>
 <body>
 
+    <!-- Drag-yta & Indikator för Refresh -->
+    <div id="pull-touch-zone"></div>
+    <div id="pull-refresh-indicator">🔄 Dra ner för att uppdatera</div>
+
+    <!-- Svart sovläge skärm -->
+    <div id="sleep-overlay"></div>
+
     <header>
         <div id="clock">00:00</div>
         <div id="date">Laddar datum...</div>
@@ -647,6 +697,7 @@
 
     <footer>
         <button class="footer-link" id="open-week-btn">📅 Veckovy</button>
+        <button class="footer-link" id="sleep-btn">🌙 Sovläge</button>
         <button class="footer-link" id="admin-btn">⚙️ Admin</button>
     </footer>
 
@@ -766,8 +817,78 @@
         </div>
     </div>
 
-    <!-- Starta klocka och notiskoll direkt -->
+    <!-- Starta klocka och funktioner -->
     <script>
+        // Sovläge-funktioner
+        let isSleeping = false;
+        const sleepOverlay = document.getElementById('sleep-overlay');
+        const sleepBtn = document.getElementById('sleep-btn');
+
+        function goToSleep() {
+            isSleeping = true;
+            sleepOverlay.style.display = 'block';
+        }
+
+        function wakeUpScreen() {
+            isSleeping = false;
+            sleepOverlay.style.display = 'none';
+        }
+
+        if (sleepBtn) sleepBtn.addEventListener('click', goToSleep);
+        if (sleepOverlay) {
+            sleepOverlay.addEventListener('click', wakeUpScreen);
+            sleepOverlay.addEventListener('touchstart', wakeUpScreen);
+        }
+
+        // Pull-to-refresh logik för pekskärm / mus
+        let startY = 0;
+        let isDragging = false;
+        const refreshIndicator = document.getElementById('pull-refresh-indicator');
+
+        function onTouchStart(e) {
+            startY = e.touches ? e.touches[0].clientY : e.clientY;
+            isDragging = true;
+        }
+
+        function onTouchMove(e) {
+            if (!isDragging) return;
+            const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+            const diff = currentY - startY;
+
+            if (diff > 20) {
+                refreshIndicator.style.top = `${Math.min(diff - 20, 60)}px`;
+            }
+        }
+
+        function onTouchEnd(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            const currentY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            const diff = currentY - startY;
+
+            if (diff > 80) {
+                refreshIndicator.style.top = '20px';
+                refreshIndicator.textContent = "Uppdaterar...";
+                setTimeout(() => location.reload(), 200);
+            } else {
+                refreshIndicator.style.top = '-60px';
+            }
+        }
+
+        // Koppla drag-händelser både på pekskärm och med mus
+        window.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0 || e.target.id === 'pull-touch-zone') onTouchStart(e);
+        }, { passive: true });
+        window.addEventListener('touchmove', onTouchMove, { passive: true });
+        window.addEventListener('touchend', onTouchEnd);
+
+        window.addEventListener('mousedown', (e) => {
+            if (e.clientY < 50) onTouchStart(e);
+        });
+        window.addEventListener('mousemove', onTouchMove);
+        window.addEventListener('mouseup', onTouchEnd);
+
+
         function playChime() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -806,9 +927,16 @@
 
         function updateClockAndDate() {
             const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const currentTimeStr = `${hours}:${minutes}`;
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const hoursStr = String(hours).padStart(2, '0');
+            const minutesStr = String(minutes).padStart(2, '0');
+            const currentTimeStr = `${hoursStr}:${minutesStr}`;
+
+            // Tänd skärmen kl 07:00
+            if (isSleeping && hours === 7 && minutes === 0) {
+                wakeUpScreen();
+            }
 
             const clockEl = document.getElementById('clock');
             if (clockEl) clockEl.textContent = currentTimeStr;
