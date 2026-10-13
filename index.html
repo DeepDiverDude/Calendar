@@ -689,7 +689,7 @@
             renderWeekView();
         });
 
-        // Ändrat från 'clicks' till roten (medDb)
+        // Lyssna direkt på roten i medicindatabasen (läser av tidsstämplarna under de unika ID-nycklarna)
         const rootRef = ref(medDb);
         onValue(rootRef, (snapshot) => {
             const data = snapshot.val();
