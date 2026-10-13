@@ -231,6 +231,7 @@
         .modal-container {
             max-width: 600px;
             margin: 0 auto;
+            padding-bottom: 40px;
         }
 
         .modal-header {
@@ -238,29 +239,35 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 24px;
+            padding: 10px 0;
+            position: relative;
+            z-index: 1005;
         }
 
         .modal-header h2 {
             font-size: 1.5rem;
             color: #0f172a;
             margin: 0;
-            line-height: 1.2;
         }
 
+        /* Säkerställer att knappen är fri och helt klickbar */
         .close-btn {
             background: #e2e8f0;
             border: none;
             font-size: 1rem;
             font-weight: 600;
-            padding: 0 18px;
-            height: 44px;
-            border-radius: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
             cursor: pointer;
             color: #334155;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
+            display: inline-block;
+            pointer-events: auto;
+            position: relative;
+            z-index: 1010;
+        }
+
+        .close-btn:hover {
+            background: #cbd5e1;
         }
 
         .admin-section {
@@ -1118,6 +1125,24 @@
                     }, 50);
                 });
             });
+
+            // Direkta lyssnare för stäng-knapparna
+            const closeWeekBtn = document.getElementById('close-week');
+            const closeAdminBtn = document.getElementById('close-admin');
+
+            if (closeWeekBtn) {
+                closeWeekBtn.onclick = (e) => {
+                    e.preventDefault();
+                    document.getElementById('week-modal').style.display = 'none';
+                };
+            }
+
+            if (closeAdminBtn) {
+                closeAdminBtn.onclick = (e) => {
+                    e.preventDefault();
+                    document.getElementById('admin-modal').style.display = 'none';
+                };
+            }
         });
     </script>
 
@@ -1662,10 +1687,6 @@
             document.getElementById('week-modal').style.display = 'block';
         });
 
-        document.getElementById('close-week').addEventListener('click', () => {
-            document.getElementById('week-modal').style.display = 'none';
-        });
-
         document.getElementById('admin-btn').addEventListener('click', () => {
             const pin = prompt('Ange PIN-kod för admin:');
             if (pin === '1956') {
@@ -1674,10 +1695,6 @@
             } else if (pin !== null) {
                 alert('Felaktig PIN-kod.');
             }
-        });
-
-        document.getElementById('close-admin').addEventListener('click', () => {
-            document.getElementById('admin-modal').style.display = 'none';
         });
     </script>
 </body>
