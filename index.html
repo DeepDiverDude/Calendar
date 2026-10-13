@@ -242,7 +242,6 @@
             margin-bottom: 6px;
         }
 
-        /* Exakt samma stil, höjd och linjering för alla fält utan att spåra ur i mobilen */
         .custom-field, input[type="text"], select {
             width: 100% !important;
             max-width: 100% !important;
@@ -267,7 +266,6 @@
             border-color: #2563eb;
         }
 
-        /* Omslutare för osynligt datumfält som triggas snyggt utan att bredda sig */
         .hidden-date-trigger {
             position: relative;
             width: 100% !important;
@@ -288,7 +286,7 @@
             margin: 0;
         }
 
-        /* Tidsväljare Modal (Den snygga mörka/anpassade snurrväljaren) */
+        /* Snygg Rullningsbar Tidsväljare Modal */
         #time-picker-modal {
             display: none;
             position: fixed;
@@ -296,61 +294,113 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             z-index: 2000;
             justify-content: center;
             align-items: center;
         }
 
         .time-picker-content {
-            background: #ffffff;
+            background: #1e293b;
+            color: #ffffff;
             padding: 24px;
-            border-radius: 20px;
+            border-radius: 24px;
             width: 90%;
-            max-width: 360px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 340px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             text-align: center;
         }
 
         .time-picker-content h3 {
-            margin-bottom: 16px;
-            color: #0f172a;
+            margin-bottom: 20px;
+            color: #f8fafc;
+            font-size: 1.3rem;
         }
 
         .wheels-container {
             display: flex;
             justify-content: center;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 16px;
+            margin-bottom: 24px;
+            position: relative;
         }
 
         .wheel-column {
             flex: 1;
-            max-height: 160px;
-            overflow-y: auto;
-            border: 1px solid #e2e8f0;
+            height: 160px;
+            overflow-y: scroll;
+            scrollbar-width: none; /* Firefox */
             border-radius: 12px;
-            background: #f8fafc;
+            background: rgba(255, 255, 255, 0.05);
             scroll-snap-type: y mandatory;
+            position: relative;
         }
 
         .wheel-column::-webkit-scrollbar {
-            display: none;
+            display: none; /* Chrome, Safari, Edge */
+        }
+
+        .wheel-spacer {
+            height: 60px;
         }
 
         .wheel-item {
-            padding: 12px 0;
-            font-size: 1.3rem;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
             font-weight: 700;
-            color: #64748b;
+            color: #94a3b8;
             cursor: pointer;
             scroll-snap-align: center;
-            transition: color 0.2s, background 0.2s;
+            transition: color 0.2s;
         }
 
         .wheel-item.selected {
-            color: #2563eb;
-            background: #e2e8f0;
+            color: #ffffff;
+            font-size: 1.6rem;
+        }
+
+        /* Visuell markeringslinje för rullen */
+        .wheels-container::after {
+            content: '';
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 0;
+            height: 40px;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+            pointer-events: none;
+        }
+
+        .picker-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-picker-confirm {
+            background: #2563eb;
+            color: white;
+            border: none;
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-picker-reset {
+            background: rgba(255, 255, 255, 0.1);
+            color: #f8fafc;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
         }
 
         .checkbox-label {
@@ -651,7 +701,7 @@
                 <div class="form-group" id="date-group" style="display:none;">
                     <label>Datum</label>
                     <div class="hidden-date-trigger">
-                        <div class="custom-field">
+                        <div class="custom-field" onclick="const d = document.getElementById('new-date'); if(d.showPicker) d.showPicker();">
                             <span id="date-display-text">Välj datum...</span>
                             <span>📅</span>
                         </div>
@@ -683,17 +733,27 @@
         </div>
     </div>
 
-    <!-- Scrollbar Tidsväljare Modal -->
+    <!-- Rullningsbar Tidsväljare Modal (Snurran) -->
     <div id="time-picker-modal">
         <div class="time-picker-content">
             <h3>Välj tid</h3>
             <div class="wheels-container">
-                <div id="hour-wheel" class="wheel-column"></div>
-                <div id="minute-wheel" class="wheel-column"></div>
+                <div id="hour-wheel" class="wheel-column">
+                    <div class="wheel-spacer"></div>
+                    <!-- Fylls via JS -->
+                    <div class="wheel-spacer"></div>
+                </div>
+                <div id="minute-wheel" class="wheel-column">
+                    <div class="wheel-spacer"></div>
+                    <!-- Fylls via JS -->
+                    <div class="wheel-spacer"></div>
+                </div>
             </div>
-            <button class="btn-primary" onclick="confirmTimeSelection()">Välj</button>
-            <button class="btn-secondary" style="display:block; margin-top:6px; background:#e2e8f0; color:#334155;" onclick="clearTimeSelection()">Rensa tid</button>
-            <button class="btn-secondary" style="display:block; margin-top:6px;" onclick="closeTimePicker()">Avbryt</button>
+            <div class="picker-actions">
+                <button class="btn-picker-reset" onclick="clearTimeSelection()">Rensa</button>
+                <button class="btn-picker-confirm" onclick="confirmTimeSelection()">Välj</button>
+            </div>
+            <button class="btn-secondary" style="display:block; margin-top:8px;" onclick="closeTimePicker()">Avbryt</button>
         </div>
     </div>
 
@@ -762,7 +822,6 @@
         setInterval(updateClockAndDate, 1000);
         updateClockAndDate();
 
-        // Uppdatera datumtexten i den anpassade rutan
         window.updateDateText = function(val) {
             const el = document.getElementById('date-display-text');
             if (val) {
@@ -774,15 +833,17 @@
             }
         }
 
-        // Tidsväljare logik
+        // Snurra / Tidsväljare Logik
         let selectedHour = "08";
         let selectedMinute = "00";
 
         function initWheels() {
             const hourWheel = document.getElementById('hour-wheel');
             const minuteWheel = document.getElementById('minute-wheel');
-            hourWheel.innerHTML = '';
-            minuteWheel.innerHTML = '';
+            
+            // Behåll spacern och rensa resten
+            hourWheel.innerHTML = '<div class="wheel-spacer"></div><div class="wheel-spacer"></div>';
+            minuteWheel.innerHTML = '<div class="wheel-spacer"></div><div class="wheel-spacer"></div>';
 
             for (let i = 0; i < 24; i++) {
                 const hStr = String(i).padStart(2, '0');
@@ -791,9 +852,10 @@
                 div.textContent = hStr;
                 div.onclick = () => {
                     selectedHour = hStr;
-                    initWheels();
+                    scrollToSelected('hour-wheel', i);
+                    updateWheelSelection('hour-wheel', hStr);
                 };
-                hourWheel.appendChild(div);
+                hourWheel.insertBefore(div, hourWheel.lastElementChild);
             }
 
             for (let i = 0; i < 60; i += 5) {
@@ -803,10 +865,27 @@
                 div.textContent = mStr;
                 div.onclick = () => {
                     selectedMinute = mStr;
-                    initWheels();
+                    scrollToSelected('minute-wheel', i / 5);
+                    updateWheelSelection('minute-wheel', mStr);
                 };
-                minuteWheel.appendChild(div);
+                minuteWheel.insertBefore(div, minuteWheel.lastElementChild);
             }
+        }
+
+        function updateWheelSelection(wheelId, val) {
+            const wheel = document.getElementById(wheelId);
+            wheel.querySelectorAll('.wheel-item').forEach(item => {
+                if (item.textContent === val) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        function scrollToSelected(wheelId, index) {
+            const wheel = document.getElementById(wheelId);
+            wheel.scrollTop = index * 40;
         }
 
         window.openTimePicker = function() {
@@ -818,6 +897,14 @@
             }
             initWheels();
             document.getElementById('time-picker-modal').style.display = 'flex';
+
+            // Scrolla till vald tid direkt när den öppnas
+            setTimeout(() => {
+                const hIndex = parseInt(selectedHour, 10);
+                const mIndex = Math.round(parseInt(selectedMinute, 10) / 5);
+                scrollToSelected('hour-wheel', hIndex);
+                scrollToSelected('minute-wheel', mIndex);
+            }, 50);
         }
 
         window.closeTimePicker = function() {
@@ -838,6 +925,27 @@
             document.getElementById('time-display-text').style.color = '#64748b';
             closeTimePicker();
         }
+
+        // Lyssna på scroll för att markera den som är i mitten
+        document.addEventListener("DOMContentLoaded", () => {
+            ['hour-wheel', 'minute-wheel'].forEach(wheelId => {
+                const wheel = document.getElementById(wheelId);
+                let scrollTimeout;
+                wheel.addEventListener('scroll', () => {
+                    clearTimeout(scrollTimeout);
+                    scrollTimeout = setTimeout(() => {
+                        const index = Math.round(wheel.scrollTop / 40);
+                        const items = wheel.querySelectorAll('.wheel-item');
+                        if (items[index]) {
+                            const val = items[index].textContent;
+                            if (wheelId === 'hour-wheel') selectedHour = val;
+                            else selectedMinute = val;
+                            updateWheelSelection(wheelId, val);
+                        }
+                    }, 50);
+                });
+            });
+        });
     </script>
 
     <!-- Firebase Modul -->
