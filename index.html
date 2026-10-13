@@ -62,7 +62,7 @@
             pointer-events: none;
         }
 
-        /* Svart sovläge-skärm */
+        /* Svart sovläge-skärm (släcker även mjukvarumässigt) */
         #sleep-overlay {
             display: none;
             position: fixed;
@@ -250,7 +250,6 @@
             margin: 0;
         }
 
-        /* Säkerställer att knappen är fri och helt klickbar */
         .close-btn {
             background: #e2e8f0;
             border: none;
@@ -845,14 +844,24 @@
         const sleepOverlay = document.getElementById('sleep-overlay');
         const sleepBtn = document.getElementById('sleep-btn');
 
+        function setPiBacklight(on) {
+            // För Raspberry Pi 7" Touch Display v1.1
+            // Om du har en lokal endpoint eller skript som kan köra sudo echo, kan du anropa det här:
+            /*
+            fetch(`/api/backlight?state=${on ? 'on' : 'off'}`).catch(e => console.log(e));
+            */
+        }
+
         function goToSleep() {
             isSleeping = true;
             sleepOverlay.style.display = 'block';
+            setPiBacklight(false); // Släcker skärmens hårdvarubelysning om anslutning finns
         }
 
         function wakeUpScreen() {
             isSleeping = false;
             sleepOverlay.style.display = 'none';
+            setPiBacklight(true); // Tänder skärmens hårdvarubelysning igen
         }
 
         if (sleepBtn) sleepBtn.addEventListener('click', goToSleep);
