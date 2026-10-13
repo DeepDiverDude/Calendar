@@ -235,7 +235,7 @@
         }
 
         label {
-            dplay: block;
+            display: block;
             font-size: 0.9rem;
             font-weight: 600;
             color: #475569;
@@ -266,12 +266,12 @@
             border-color: #2563eb;
         }
 
-        /* Heltäckande datum-wrapper som gör hela ytan klickbar */
         .hidden-date-trigger {
             position: relative;
             width: 100% !important;
             height: 48px;
             box-sizing: border-box !important;
+            cursor: pointer;
         }
 
         .hidden-date-trigger .custom-field {
@@ -281,6 +281,7 @@
             width: 100% !important;
             height: 100% !important;
             z-index: 1;
+            pointer-events: none;
         }
 
         .hidden-date-trigger input[type="date"] {
@@ -710,7 +711,7 @@
                 </div>
                 <div class="form-group" id="date-group" style="display:none;">
                     <label>Datum</label>
-                    <div class="hidden-date-trigger">
+                    <div class="hidden-date-trigger" onclick="openDatePicker()">
                         <div class="custom-field">
                             <span id="date-display-text">Välj datum...</span>
                             <span>📅</span>
@@ -829,6 +830,18 @@
         }
         setInterval(updateClockAndDate, 1000);
         updateClockAndDate();
+
+        // Tvinga kalendern att öppnas oavsett var man klickar i datorn
+        window.openDatePicker = function() {
+            const dateInput = document.getElementById('new-date');
+            if (dateInput && dateInput.showPicker) {
+                try {
+                    dateInput.showPicker();
+                } catch(e) {
+                    dateInput.focus();
+                }
+            }
+        }
 
         window.updateDateText = function(val) {
             const el = document.getElementById('date-display-text');
