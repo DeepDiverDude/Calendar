@@ -242,11 +242,10 @@
             margin-bottom: 6px;
         }
 
-        /* Exakt samma stil och bredd för ALLA fält, inklusive datum och select */
-        input[type="text"], select, input[type="date"], .custom-input-box {
+        /* Exakt samma stil, höjd och linjering för alla fält utan att spåra ur i mobilen */
+        .custom-field, input[type="text"], select {
             width: 100% !important;
             max-width: 100% !important;
-            min-width: 100% !important;
             height: 48px;
             padding: 0 12px;
             border: 1px solid #cbd5e1;
@@ -260,13 +259,36 @@
             justify-content: space-between;
             cursor: pointer;
             box-sizing: border-box !important;
+            -webkit-appearance: none;
+            appearance: none;
         }
 
-        input[type="text"]:focus, select:focus, input[type="date"]:focus, .custom-input-box:focus-within {
+        input[type="text"]:focus, select:focus, .custom-field:focus-within {
             border-color: #2563eb;
         }
 
-        /* Tidsväljare Modal */
+        /* Omslutare för osynligt datumfält som triggas snyggt utan att bredda sig */
+        .hidden-date-trigger {
+            position: relative;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .hidden-date-trigger input[type="date"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 10;
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* Tidsväljare Modal (Den snygga mörka/anpassade snurrväljaren) */
         #time-picker-modal {
             display: none;
             position: fixed;
@@ -607,7 +629,7 @@
                 </div>
                 <div class="form-group">
                     <label>Klockslag (lämna tomt för automatisk morgon/kväll)</label>
-                    <div id="new-time-display" class="custom-input-box" onclick="openTimePicker()">
+                    <div id="new-time-display" class="custom-field" onclick="openTimePicker()">
                         <span id="time-display-text">Välj tid (valfritt)...</span>
                         <span>🕒</span>
                     </div>
@@ -628,7 +650,13 @@
                 </div>
                 <div class="form-group" id="date-group" style="display:none;">
                     <label>Datum</label>
-                    <input type="date" id="new-date" onclick="this.showPicker && this.showPicker()">
+                    <div class="hidden-date-trigger">
+                        <div class="custom-field">
+                            <span id="date-display-text">Välj datum...</span>
+                            <span>📅</span>
+                        </div>
+                        <input type="date" id="new-date" onchange="updateDateText(this.value)">
+                    </div>
                 </div>
                 <div class="form-group" id="days-group" style="display:none;">
                     <label>Välj veckodagar</label>
@@ -733,6 +761,18 @@
         }
         setInterval(updateClockAndDate, 1000);
         updateClockAndDate();
+
+        // Uppdatera datumtexten i den anpassade rutan
+        window.updateDateText = function(val) {
+            const el = document.getElementById('date-display-text');
+            if (val) {
+                el.textContent = val;
+                el.style.color = '#0f172a';
+            } else {
+                el.textContent = 'Välj datum...';
+                el.style.color = '#64748b';
+            }
+        }
 
         // Tidsväljare logik
         let selectedHour = "08";
@@ -1198,7 +1238,10 @@
                 displayText.style.color = '#64748b';
             }
 
-            document.getElementById('new-date').value = act.date || '';
+            const dateVal = act.date || '';
+            document.getElementById('new-date').value = dateVal;
+            updateDateText(dateVal);
+
             document.getElementById('new-notify').checked = !!act.notify;
             document.getElementById('new-type').value = act.type || 'daily';
             
@@ -1225,6 +1268,8 @@
             displayText.style.color = '#64748b';
 
             document.getElementById('new-date').value = '';
+            updateDateText('');
+
             document.getElementById('new-notify').checked = false;
             document.getElementById('new-type').value = 'daily';
             document.querySelectorAll('.days-selector input[type="checkbox"]').forEach(cb => cb.checked = false);
