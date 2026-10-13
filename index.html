@@ -242,7 +242,6 @@
             margin-bottom: 6px;
         }
 
-        /* Exakt samma bredd och utseende för alla fält */
         input[type="text"], select, .custom-input-box {
             width: 100% !important;
             max-width: 100% !important;
@@ -266,7 +265,6 @@
             border-color: #2563eb;
         }
 
-        /* Döljer det inbyggda datumfältet men låter det ligga bakom som klickbar trigger */
         .date-wrapper {
             position: relative;
             width: 100% !important;
@@ -646,7 +644,7 @@
                 <div class="form-group" id="date-group" style="display:none;">
                     <label>Datum</label>
                     <div class="date-wrapper">
-                        <div class="custom-input-box">
+                        <div class="custom-input-box" onclick="document.getElementById('new-date').showPicker && document.getElementById('new-date').showPicker()">
                             <span id="date-display-text">Välj datum...</span>
                             <span>📅</span>
                         </div>
