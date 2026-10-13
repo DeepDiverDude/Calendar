@@ -243,6 +243,8 @@
         .modal-header h2 {
             font-size: 1.5rem;
             color: #0f172a;
+            margin: 0;
+            line-height: 1.2;
         }
 
         .close-btn {
@@ -250,10 +252,11 @@
             border: none;
             font-size: 1rem;
             font-weight: 600;
-            padding: 8px 16px;
+            padding: 10px 18px;
             border-radius: 8px;
             cursor: pointer;
             color: #334155;
+            line-height: normal;
         }
 
         .admin-section {
@@ -740,12 +743,20 @@
                     <input type="text" id="new-title" placeholder="T.ex. Promenad, Lunch">
                 </div>
                 <div class="form-group">
-                    <label>Klockslag (lämna tomt för automatisk morgon/kväll)</label>
-                    <div id="new-time-display" class="custom-field" onclick="openTimePicker()">
-                        <span id="time-display-text">Välj tid (valfritt)...</span>
+                    <label>Starttid (lämna tomt för automatisk morgon/kväll)</label>
+                    <div id="new-time-display" class="custom-field" onclick="openTimePicker('start')">
+                        <span id="time-display-text">Välj starttid (valfritt)...</span>
                         <span>🕒</span>
                     </div>
                     <input type="hidden" id="new-time" value="">
+                </div>
+                <div class="form-group">
+                    <label>Sluttid (valfritt)</label>
+                    <div id="new-endtime-display" class="custom-field" onclick="openTimePicker('end')">
+                        <span id="endtime-display-text">Välj sluttid (valfritt)...</span>
+                        <span>🕒</span>
+                    </div>
+                    <input type="hidden" id="new-endtime" value="">
                 </div>
                 <div class="form-group">
                     <label class="checkbox-label">
@@ -798,7 +809,7 @@
     <!-- Rullningsbar Tidsväljare Modal (Snurran) -->
     <div id="time-picker-modal">
         <div class="time-picker-content">
-            <h3>Välj tid</h3>
+            <h3 id="picker-title">Välj tid</h3>
             <div class="wheels-container">
                 <div id="hour-wheel" class="wheel-column">
                     <div class="wheel-spacer"></div>
@@ -819,7 +830,6 @@
 
     <!-- Starta klocka och funktioner -->
     <script>
-        // Sovläge-funktioner
         let isSleeping = false;
         const sleepOverlay = document.getElementById('sleep-overlay');
         const sleepBtn = document.getElementById('sleep-btn');
@@ -840,7 +850,6 @@
             sleepOverlay.addEventListener('touchstart', wakeUpScreen);
         }
 
-        // Pull-to-refresh logik för pekskärm / mus
         let startY = 0;
         let isDragging = false;
         const refreshIndicator = document.getElementById('pull-refresh-indicator');
@@ -875,7 +884,6 @@
             }
         }
 
-        // Koppla drag-händelser både på pekskärm och med mus
         window.addEventListener('touchstart', (e) => {
             if (window.scrollY === 0 || e.target.id === 'pull-touch-zone') onTouchStart(e);
         }, { passive: true });
@@ -933,7 +941,6 @@
             const minutesStr = String(minutes).padStart(2, '0');
             const currentTimeStr = `${hoursStr}:${minutesStr}`;
 
-            // Tänd skärmen kl 07:00
             if (isSleeping && hours === 7 && minutes === 0) {
                 wakeUpScreen();
             }
@@ -984,6 +991,7 @@
         // Snurra / Tidsväljare Logik
         let selectedHour = "08";
         let selectedMinute = "00";
+        let activeTimeTarget = 'start'; // 'start' eller 'end'
 
         function initWheels() {
             const hourWheel = document.getElementById('hour-wheel');
@@ -1035,8 +1043,12 @@
             wheel.scrollTop = index * 40;
         }
 
-        window.openTimePicker = function() {
-            const currentVal = document.getElementById('new-time').value;
+        window.openTimePicker = function(target) {
+            activeTimeTarget = target;
+            document.getElementById('picker-title').textContent = target === 'start' ? 'Välj starttid' : 'Välj sluttid';
+            
+            const inputId = target === 'start' ? 'new-time' : 'new-endtime';
+            const currentVal = document.getElementById(inputId).value;
             if (currentVal && currentVal.includes(':')) {
                 const parts = currentVal.split(':');
                 selectedHour = parts[0];
@@ -1059,16 +1071,28 @@
 
         window.confirmTimeSelection = function() {
             const timeStr = `${selectedHour}:${selectedMinute}`;
-            document.getElementById('new-time').value = timeStr;
-            document.getElementById('time-display-text').textContent = timeStr;
-            document.getElementById('time-display-text').style.color = '#0f172a';
+            if (activeTimeTarget === 'start') {
+                document.getElementById('new-time').value = timeStr;
+                document.getElementById('time-display-text').textContent = timeStr;
+                document.getElementById('time-display-text').style.color = '#0f172a';
+            } else {
+                document.getElementById('new-endtime').value = timeStr;
+                document.getElementById('endtime-display-text').textContent = timeStr;
+                document.getElementById('endtime-display-text').style.color = '#0f172a';
+            }
             closeTimePicker();
         }
 
         window.clearTimeSelection = function() {
-            document.getElementById('new-time').value = '';
-            document.getElementById('time-display-text').textContent = 'Välj tid (valfritt)...';
-            document.getElementById('time-display-text').style.color = '#64748b';
+            if (activeTimeTarget === 'start') {
+                document.getElementById('new-time').value = '';
+                document.getElementById('time-display-text').textContent = 'Välj starttid (valfritt)...';
+                document.getElementById('time-display-text').style.color = '#64748b';
+            } else {
+                document.getElementById('new-endtime').value = '';
+                document.getElementById('endtime-display-text').textContent = 'Välj sluttid (valfritt)...';
+                document.getElementById('endtime-display-text').style.color = '#64748b';
+            }
             closeTimePicker();
         }
 
@@ -1129,8 +1153,8 @@
             const data = snapshot.val();
             if (!data) {
                 const defaultActs = {
-                    "morgon": { title: "Morgonmedicin", type: "daily", time: "", notify: true, secret: "1956" },
-                    "kvall": { title: "Kvällsmedicin", type: "daily", time: "", notify: true, secret: "1956" }
+                    "morgon": { title: "Morgonmedicin", type: "daily", time: "", endTime: "", notify: true, secret: "1956" },
+                    "kvall": { title: "Kvällsmedicin", type: "daily", time: "", endTime: "", notify: true, secret: "1956" }
                 };
                 set(activitiesRef, defaultActs);
             } else {
@@ -1299,6 +1323,10 @@
                     displayTime = (isCompleted && todayCompletions[act.id].time) ? todayCompletions[act.id].time : act.defaultTime;
                 }
 
+                if (act.endTime) {
+                    displayTime = `${displayTime} - ${act.endTime}`;
+                }
+
                 const card = document.createElement('div');
                 card.className = `activity-card ${isCompleted ? 'completed' : ''}`;
                 card.innerHTML = `
@@ -1434,6 +1462,10 @@
                             }
                         }
 
+                        if (act.endTime) {
+                            displayTime = `${displayTime} - ${act.endTime}`;
+                        }
+
                         let sortTime = act.time || displayTime;
                         dayActs.push({ ...act, displayTime, sortTime, isCompleted });
                     }
@@ -1472,6 +1504,7 @@
             const editId = document.getElementById('edit-activity-id').value;
             const title = document.getElementById('new-title').value.trim();
             const time = document.getElementById('new-time').value;
+            const endTime = document.getElementById('new-endtime').value;
             const notify = document.getElementById('new-notify').checked;
             const type = document.getElementById('new-type').value;
             const date = document.getElementById('new-date').value;
@@ -1494,7 +1527,7 @@
                 return;
             }
 
-            const activityData = { title, time, notify, type, date, days, secret: "1956" };
+            const activityData = { title, time, endTime, notify, type, date, days, secret: "1956" };
 
             if (editId) {
                 update(ref(db, `activities/${editId}`), activityData);
@@ -1522,8 +1555,19 @@
                 displayText.textContent = timeVal;
                 displayText.style.color = '#0f172a';
             } else {
-                displayText.textContent = 'Välj tid (valfritt)...';
+                displayText.textContent = 'Välj starttid (valfritt)...';
                 displayText.style.color = '#64748b';
+            }
+
+            const endTimeVal = act.endTime || '';
+            document.getElementById('new-endtime').value = endTimeVal;
+            const endDisplayText = document.getElementById('endtime-display-text');
+            if (endTimeVal) {
+                endDisplayText.textContent = endTimeVal;
+                endDisplayText.style.color = '#0f172a';
+            } else {
+                endDisplayText.textContent = 'Välj sluttid (valfritt)...';
+                endDisplayText.style.color = '#64748b';
             }
 
             const dateVal = act.date || '';
@@ -1552,8 +1596,13 @@
             document.getElementById('new-time').value = '';
             
             const displayText = document.getElementById('time-display-text');
-            displayText.textContent = 'Välj tid (valfritt)...';
+            displayText.textContent = 'Välj starttid (valfritt)...';
             displayText.style.color = '#64748b';
+
+            document.getElementById('new-endtime').value = '';
+            const endDisplayText = document.getElementById('endtime-display-text');
+            endDisplayText.textContent = 'Välj sluttid (valfritt)...';
+            endDisplayText.style.color = '#64748b';
 
             document.getElementById('new-date').value = '';
             updateDateText('');
@@ -1580,10 +1629,13 @@
             Object.entries(allActivities).forEach(([id, act]) => {
                 const item = document.createElement('div');
                 item.className = 'admin-item';
+                let timeStr = act.time || 'Ingen tid';
+                if (act.endTime) timeStr += ` - ${act.endTime}`;
+
                 item.innerHTML = `
                     <div onclick="editActivity('${id}')" style="flex:1;">
                         <strong>${act.title}</strong> ${act.notify ? '🔔' : ''}<br>
-                        <small style="color:#64748b;">${act.time || 'Ingen tid angiven'} (${act.type})</small>
+                        <small style="color:#64748b;">${timeStr} (${act.type})</small>
                     </div>
                     <div class="admin-item-actions">
                         <button class="btn-danger" onclick="event.stopPropagation(); deleteActivity('${id}')">Ta bort</button>
