@@ -252,11 +252,15 @@
             border: none;
             font-size: 1rem;
             font-weight: 600;
-            padding: 10px 18px;
+            padding: 0 18px;
+            height: 44px;
             border-radius: 8px;
             cursor: pointer;
             color: #334155;
-            line-height: normal;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
 
         .admin-section {
@@ -991,7 +995,7 @@
         // Snurra / Tidsväljare Logik
         let selectedHour = "08";
         let selectedMinute = "00";
-        let activeTimeTarget = 'start'; // 'start' eller 'end'
+        let activeTimeTarget = 'start';
 
         function initWheels() {
             const hourWheel = document.getElementById('hour-wheel');
