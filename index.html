@@ -831,7 +831,6 @@
         setInterval(updateClockAndDate, 1000);
         updateClockAndDate();
 
-        // Tvinga kalendern att öppnas oavsett var man klickar i datorn
         window.openDatePicker = function() {
             const dateInput = document.getElementById('new-date');
             if (dateInput && dateInput.showPicker) {
@@ -985,7 +984,17 @@
         let allCompletionsCache = {};
         let pressTimer = null;
         let currentWeekOffset = 0;
-        const todayKey = new Date().toISOString().split('T')[0];
+
+        function getTodayKey() {
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        let todayKey = getTodayKey();
+        let completionsRef = null;
 
         const activitiesRef = ref(db, 'activities');
         onValue(activitiesRef, (snapshot) => {
@@ -1004,12 +1013,17 @@
             }
         });
 
-        const completionsRef = ref(db, `completions/${todayKey}`);
-        onValue(completionsRef, (snapshot) => {
-            todayCompletions = snapshot.val() || {};
-            renderApp();
-            renderWeekView();
-        });
+        function listenToTodayCompletions() {
+            todayKey = getTodayKey();
+            completionsRef = ref(db, `completions/${todayKey}`);
+            onValue(completionsRef, (snapshot) => {
+                todayCompletions = snapshot.val() || {};
+                renderApp();
+                renderWeekView();
+            });
+        }
+
+        listenToTodayCompletions();
 
         const allCompletionsRef = ref(db, 'completions');
         onValue(allCompletionsRef, (snapshot) => {
@@ -1017,15 +1031,27 @@
             renderWeekView();
         });
 
+        function checkNewDay() {
+            const currentRealToday = getTodayKey();
+            if (currentRealToday !== todayKey) {
+                todayKey = currentRealToday;
+                todayCompletions = {};
+                listenToTodayCompletions();
+                renderApp();
+                renderWeekView();
+            }
+        }
+
         async function fetchAndCheckLogs() {
+            checkNewDay();
+
             try {
                 const res = await fetch(`${medFirebaseURL}/.json`);
                 const data = await res.json();
                 
                 if (!data) return;
 
-                const now = new Date();
-                const todayStr = now.toISOString().split('T')[0];
+                const todayStr = getTodayKey();
 
                 const logs = Object.keys(data).map(key => ({
                     id: key,
@@ -1035,7 +1061,10 @@
 
                 logs.forEach(log => {
                     const clickDate = new Date(log.timestamp * 1000);
-                    const clickDateStr = clickDate.toISOString().split('T')[0];
+                    const year = clickDate.getFullYear();
+                    const month = String(clickDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(clickDate.getDate()).padStart(2, '0');
+                    const clickDateStr = `${year}-${month}-${day}`;
 
                     if (clickDateStr === todayStr) {
                         const hours = clickDate.getHours();
@@ -1057,7 +1086,7 @@
                         });
 
                         if (targetKey) {
-                            const compRef = ref(db, `completions/${todayKey}/${targetKey}`);
+                            const compRef = ref(db, `completions/${todayStr}/${targetKey}`);
                             set(compRef, { completed: true, time: timeStr, secret: "1956" });
                         }
                     }
@@ -1071,9 +1100,10 @@
         setInterval(fetchAndCheckLogs, 10000);
 
         window.checkActivityReminders = function(currentTimeStr) {
+            checkNewDay();
             const now = new Date();
             const currentDayOfWeek = now.getDay();
-            const todayDateStr = now.toISOString().split('T')[0];
+            const todayDateStr = getTodayKey();
 
             Object.entries(allActivities).forEach(([id, act]) => {
                 if (!act.notify) return;
@@ -1098,12 +1128,13 @@
         };
 
         function renderApp() {
+            checkNewDay();
             const container = document.getElementById('activities-container');
             container.innerHTML = '';
 
             const now = new Date();
             const currentDayOfWeek = now.getDay();
-            const todayDateStr = now.toISOString().split('T')[0];
+            const todayDateStr = getTodayKey();
 
             let todaysList = [];
 
@@ -1193,7 +1224,7 @@
         function toggleCompletion(id, status) {
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            const compRef = ref(db, `completions/${todayKey}/${id}`);
+            const compRef = ref(db, `completions/${getTodayKey()}/${id}`);
             if (status) {
                 set(compRef, { completed: true, time: timeStr, secret: "1956" });
             } else {
@@ -1232,7 +1263,7 @@
 
             const daysOfWeekNames = ["Söndag", "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag"];
             const monthsNames = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"];
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = getTodayKey();
 
             const currentDay = now.getDay();
             const diffToMonday = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
