@@ -235,7 +235,7 @@
         }
 
         label {
-            display: block;
+            dplay: block;
             font-size: 0.9rem;
             font-weight: 600;
             color: #475569;
@@ -266,10 +266,21 @@
             border-color: #2563eb;
         }
 
+        /* Heltäckande datum-wrapper som gör hela ytan klickbar */
         .hidden-date-trigger {
             position: relative;
             width: 100% !important;
+            height: 48px;
             box-sizing: border-box !important;
+        }
+
+        .hidden-date-trigger .custom-field {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 1;
         }
 
         .hidden-date-trigger input[type="date"] {
@@ -280,13 +291,13 @@
             height: 100% !important;
             opacity: 0;
             cursor: pointer;
-            z-index: 10;
+            z-index: 20;
             border: none;
             padding: 0;
             margin: 0;
         }
 
-        /* Snygg Rullningsbar Tidsväljare Modal */
+        /* Snygg Rullningsbar Tidsväljare Modal (Snurran) */
         #time-picker-modal {
             display: none;
             position: fixed;
@@ -329,7 +340,7 @@
             flex: 1;
             height: 160px;
             overflow-y: scroll;
-            scrollbar-width: none; /* Firefox */
+            scrollbar-width: none;
             border-radius: 12px;
             background: rgba(255, 255, 255, 0.05);
             scroll-snap-type: y mandatory;
@@ -337,7 +348,7 @@
         }
 
         .wheel-column::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Edge */
+            display: none;
         }
 
         .wheel-spacer {
@@ -362,7 +373,6 @@
             font-size: 1.6rem;
         }
 
-        /* Visuell markeringslinje för rullen */
         .wheels-container::after {
             content: '';
             position: absolute;
@@ -701,7 +711,7 @@
                 <div class="form-group" id="date-group" style="display:none;">
                     <label>Datum</label>
                     <div class="hidden-date-trigger">
-                        <div class="custom-field" onclick="const d = document.getElementById('new-date'); if(d.showPicker) d.showPicker();">
+                        <div class="custom-field">
                             <span id="date-display-text">Välj datum...</span>
                             <span>📅</span>
                         </div>
@@ -740,12 +750,10 @@
             <div class="wheels-container">
                 <div id="hour-wheel" class="wheel-column">
                     <div class="wheel-spacer"></div>
-                    <!-- Fylls via JS -->
                     <div class="wheel-spacer"></div>
                 </div>
                 <div id="minute-wheel" class="wheel-column">
                     <div class="wheel-spacer"></div>
-                    <!-- Fylls via JS -->
                     <div class="wheel-spacer"></div>
                 </div>
             </div>
@@ -841,7 +849,6 @@
             const hourWheel = document.getElementById('hour-wheel');
             const minuteWheel = document.getElementById('minute-wheel');
             
-            // Behåll spacern och rensa resten
             hourWheel.innerHTML = '<div class="wheel-spacer"></div><div class="wheel-spacer"></div>';
             minuteWheel.innerHTML = '<div class="wheel-spacer"></div><div class="wheel-spacer"></div>';
 
@@ -898,7 +905,6 @@
             initWheels();
             document.getElementById('time-picker-modal').style.display = 'flex';
 
-            // Scrolla till vald tid direkt när den öppnas
             setTimeout(() => {
                 const hIndex = parseInt(selectedHour, 10);
                 const mIndex = Math.round(parseInt(selectedMinute, 10) / 5);
@@ -926,7 +932,6 @@
             closeTimePicker();
         }
 
-        // Lyssna på scroll för att markera den som är i mitten
         document.addEventListener("DOMContentLoaded", () => {
             ['hour-wheel', 'minute-wheel'].forEach(wheelId => {
                 const wheel = document.getElementById(wheelId);
