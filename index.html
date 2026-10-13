@@ -242,7 +242,8 @@
             margin-bottom: 6px;
         }
 
-        input[type="text"], select, .custom-input-box {
+        /* Exakt samma stil och bredd för ALLA fält, inklusive datum och select */
+        input[type="text"], select, input[type="date"], .custom-input-box {
             width: 100% !important;
             max-width: 100% !important;
             min-width: 100% !important;
@@ -261,24 +262,8 @@
             box-sizing: border-box !important;
         }
 
-        input[type="text"]:focus, select:focus, .custom-input-box:focus-within {
+        input[type="text"]:focus, select:focus, input[type="date"]:focus, .custom-input-box:focus-within {
             border-color: #2563eb;
-        }
-
-        .date-wrapper {
-            position: relative;
-            width: 100% !important;
-        }
-
-        .date-wrapper input[type="date"] {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: pointer;
-            z-index: 5;
         }
 
         /* Tidsväljare Modal */
@@ -643,13 +628,7 @@
                 </div>
                 <div class="form-group" id="date-group" style="display:none;">
                     <label>Datum</label>
-                    <div class="date-wrapper">
-                        <div class="custom-input-box" onclick="document.getElementById('new-date').showPicker && document.getElementById('new-date').showPicker()">
-                            <span id="date-display-text">Välj datum...</span>
-                            <span>📅</span>
-                        </div>
-                        <input type="date" id="new-date" onchange="updateDateDisplay(this.value)">
-                    </div>
+                    <input type="date" id="new-date" onclick="this.showPicker && this.showPicker()">
                 </div>
                 <div class="form-group" id="days-group" style="display:none;">
                     <label>Välj veckodagar</label>
@@ -754,18 +733,6 @@
         }
         setInterval(updateClockAndDate, 1000);
         updateClockAndDate();
-
-        // Datumvisning helper
-        window.updateDateDisplay = function(val) {
-            const displayText = document.getElementById('date-display-text');
-            if (val) {
-                displayText.textContent = val;
-                displayText.style.color = '#0f172a';
-            } else {
-                displayText.textContent = 'Välj datum...';
-                displayText.style.color = '#64748b';
-            }
-        }
 
         // Tidsväljare logik
         let selectedHour = "08";
@@ -1231,10 +1198,7 @@
                 displayText.style.color = '#64748b';
             }
 
-            const dateVal = act.date || '';
-            document.getElementById('new-date').value = dateVal;
-            updateDateDisplay(dateVal);
-
+            document.getElementById('new-date').value = act.date || '';
             document.getElementById('new-notify').checked = !!act.notify;
             document.getElementById('new-type').value = act.type || 'daily';
             
@@ -1261,8 +1225,6 @@
             displayText.style.color = '#64748b';
 
             document.getElementById('new-date').value = '';
-            updateDateDisplay('');
-
             document.getElementById('new-notify').checked = false;
             document.getElementById('new-type').value = 'daily';
             document.querySelectorAll('.days-selector input[type="checkbox"]').forEach(cb => cb.checked = false);
