@@ -240,7 +240,7 @@
             margin-bottom: 6px;
         }
 
-        input[type="text"], input[type="date"], select {
+        input[type="text"], select {
             width: 100%;
             padding: 12px;
             border: 1px solid #cbd5e1;
@@ -250,7 +250,20 @@
             background: #fff;
         }
 
-        /* Tidsväljare fält */
+        /* Förstorad och touchvänlig datumväljare */
+        input[type="date"] {
+            width: 100%;
+            padding: 16px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            outline: none;
+            background: #fff;
+            color: #1e293b;
+            cursor: pointer;
+        }
+
+        /* Tidsväljare fält - exakt samma bredd och box-modell som övriga fält */
         .time-picker-input {
             width: 100%;
             padding: 12px;
@@ -265,11 +278,11 @@
             color: #1e293b;
         }
 
-        input:focus, select:focus {
+        input:focus, select:focus, .time-picker-input:focus {
             border-color: #2563eb;
         }
 
-        /* Tidsväljare Overlay / Pop-up */
+        /* Tidsväljare Modal */
         #time-picker-modal {
             display: none;
             position: fixed;
@@ -625,7 +638,8 @@
                 </div>
                 <div class="form-group" id="date-group" style="display:none;">
                     <label>Datum</label>
-                    <input type="date" id="new-date">
+                    <!-- Datumfältet öppnar kalendern direkt vid klick och är förstorat -->
+                    <input type="date" id="new-date" onclick="this.showPicker && this.showPicker()">
                 </div>
                 <div class="form-group" id="days-group" style="display:none;">
                     <label>Välj veckodagar</label>
@@ -753,7 +767,7 @@
                 hourWheel.appendChild(div);
             }
 
-            for (let i = 0; i < 60; i += 5) { // 5-minutersintervall för smidighet
+            for (let i = 0; i < 60; i += 5) {
                 const mStr = String(i).padStart(2, '0');
                 const div = document.createElement('div');
                 div.className = `wheel-item ${mStr === selectedMinute ? 'selected' : ''}`;
