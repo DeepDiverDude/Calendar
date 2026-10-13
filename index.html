@@ -1,4 +1,3 @@
-<script src="[https://polyfill.io/v3/polyfill.min.js](https://polyfill.io/v3/polyfill.min.js)"></script>
 <!DOCTYPE html>
 <html lang="sv">
 <head>
@@ -690,17 +689,18 @@
             renderWeekView();
         });
 
-        const clicksRef = ref(medDb, 'clicks');
-        onValue(clicksRef, (snapshot) => {
-            const clicks = snapshot.val();
-            if (!clicks) return;
+        // Ändrat från 'clicks' till roten (medDb)
+        const rootRef = ref(medDb);
+        onValue(rootRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
 
             const now = new Date();
             const todayStr = now.toISOString().split('T')[0];
 
-            Object.values(clicks).forEach(click => {
-                if (!click.timestamp) return;
-                const clickDate = new Date(click.timestamp * 1000);
+            Object.values(data).forEach(entry => {
+                if (!entry || !entry.timestamp) return;
+                const clickDate = new Date(entry.timestamp * 1000);
                 const clickDateStr = clickDate.toISOString().split('T')[0];
 
                 if (clickDateStr === todayStr) {
